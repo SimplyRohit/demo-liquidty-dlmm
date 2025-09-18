@@ -2,7 +2,7 @@ import { Telegraf } from "telegraf";
 import { LiquidityBookServices } from "@saros-finance/dlmm-sdk";
 import { PublicKey } from "@solana/web3.js";
 import { PositionInfo } from "@saros-finance/dlmm-sdk/types/services";
-import type { MyContext } from "../types";
+import type { MyContext } from "../../types";
 
 export function setupUserCommands(bot: Telegraf<MyContext>, liquidityBookServices: LiquidityBookServices) {
   

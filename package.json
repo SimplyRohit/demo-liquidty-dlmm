@@ -17,7 +17,9 @@
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.31.1",
+    "@metaplex-foundation/mpl-token-metadata": "^3.4.0",
     "@saros-finance/dlmm-sdk": "^1.4.0",
+    "@solana/spl-token-registry": "^0.2.4574",
     "@solana/web3.js": "^1.98.4",
     "@types/node-telegram-bot-api": "^0.64.11",
     "bs58": "^6.0.0",
