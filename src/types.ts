@@ -15,59 +15,32 @@ export interface MyContext extends Context {
   session?: MySession;
 }
 
-export interface JupTokenInfo {
-  id: string;
-  name: string;
-  symbol: string;
-  icon?: string;
-  decimals: number;
+export interface PoolData {
   address: string;
-  circSupply?: number;
-  totalSupply?: number;
-  tokenProgram?: string;
-  mintAuthority?: string;
-  freezeAuthority?: string;
-  firstPool?: {
-    id: string;
-    createdAt: string;
+  metadata: any;
+  baseToken: TokenInfo;
+  quoteToken: TokenInfo;
+  metrics: PoolMetrics;
+}
+
+export interface TokenInfo {
+  symbol: string;
+  mint: string;
+  decimals: number;
+  usdPrice: number;
+  stats24h?: {
+    buyVolume: number;
+    sellVolume: number;
   };
-  audit?: Record<string, any>;
-  organicScore?: number;
-  organicScoreLabel?: string;
-  isVerified: boolean;
-  tags?: string[];
-  fdv?: number;
-  mcap?: number;
-  usdPrice?: number;
-  priceBlockId?: number;
-  liquidity?: number;
-
-  stats5m?: TokenStats;
-  stats1h?: TokenStats;
-  stats6h?: TokenStats;
-  stats24h?: TokenStatsExtended;
-
-  cTikles?: number;
-  smartClicks?: number;
-  updatedAt?: string;
 }
 
-export interface TokenStats {
-  priceChange: number;
-  holderChange: number;
-  liquidityChange: number;
-  [key: string]: any;
-}
-
-export interface TokenStatsExtended extends TokenStats {
-  volumeChange?: number;
-  buyVolume?: number;
-  sellVolume?: number;
-  buyOrganicVolume?: number;
-  sellOrganicVolume?: number;
-  numBuys?: number;
-  numSells?: number;
-  numTraders?: number;
-  numOrganicBuyers?: number;
-  numNetBuyers?: number;
+export interface PoolMetrics {
+  baseAmount: number;
+  quoteAmount: number;
+  totalLiquidity: number;
+  exchangeRate: number;
+  reverseRate: number;
+  volume24h: number;
+  fees24h: number;
+  apr: number;
 }
