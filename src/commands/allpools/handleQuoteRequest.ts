@@ -1,8 +1,10 @@
-import type { LiquidityBookServices } from "@saros-finance/dlmm-sdk";
-import type { MyContext } from "../../types";
+import type { LiquidityBookServices, PoolMetadata } from "@saros-finance/dlmm-sdk";
+import type { JupTokenInfo, MyContext } from "../../types";
+import { PublicKey } from "@solana/web3.js";
 
 export async function handleQuoteRequest(ctx: MyContext, poolAddress: string, liquidityBookServices: LiquidityBookServices) {
   try {
+    // @ts-ignore just ignore it bruhh
     const amountStr = ctx.message?.text?.trim();
     if (!amountStr) {
       await ctx.reply("❌ Please provide a valid amount.");
@@ -85,7 +87,7 @@ export async function handleQuoteRequest(ctx: MyContext, poolAddress: string, li
       }
     }
  // Get token information for better display
-    const [baseTokenResponse, quoteTokenResponse] = await Promise.all([
+    const [baseTokenResponse , quoteTokenResponse] = await Promise.all([
       fetch(`https://lite-api.jup.ag/ultra/v1/search?query=${metadata.baseMint}`).catch(() => null),
       fetch(`https://lite-api.jup.ag/ultra/v1/search?query=${metadata.quoteMint}`).catch(() => null)
     ]);
@@ -94,8 +96,10 @@ export async function handleQuoteRequest(ctx: MyContext, poolAddress: string, li
     let quoteSymbol = "QUOTE";
 
     if (baseTokenResponse && quoteTokenResponse) {
-      const baseTokenData = (await baseTokenResponse.json())[0];
-      const quoteTokenData = (await quoteTokenResponse.json())[0];
+      const baseTokenJson = (await baseTokenResponse.json()) as JupTokenInfo[];
+      const quoteTokenJson = (await quoteTokenResponse.json()) as JupTokenInfo[];
+      const baseTokenData = baseTokenJson[0];
+      const quoteTokenData = quoteTokenJson[0];
       if (baseTokenData) baseSymbol = baseTokenData.symbol;
       if (quoteTokenData) quoteSymbol = quoteTokenData.symbol;
     }

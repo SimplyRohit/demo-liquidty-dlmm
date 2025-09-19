@@ -30,51 +30,52 @@ export async function sendPoolMetadataPage(ctx: MyContext, page: number, liquidi
       try {
         const metadata = await liquidityBookServices.fetchPoolMetadata(address);
         
-        // Fetch token data with error handling
-        const [baseTokenResponse, quoteTokenResponse] = await Promise.all([
-          fetch(`https://lite-api.jup.ag/ultra/v1/search?query=${metadata.baseMint}`).catch(() => null),
-          fetch(`https://lite-api.jup.ag/ultra/v1/search?query=${metadata.quoteMint}`).catch(() => null)
-        ]);
+        // // Fetch token data with error handling
+        // const [baseTokenResponse, quoteTokenResponse] = await Promise.all([
+        //   fetch(`https://lite-api.jup.ag/ultra/v1/search?query=${metadata.baseMint}`).catch(() => null),
+        //   fetch(`https://lite-api.jup.ag/ultra/v1/search?query=${metadata.quoteMint}`).catch(() => null)
+        // ]);
 
-        if (!baseTokenResponse || !quoteTokenResponse) {
-          throw new Error("Failed to fetch token data");
-        }
+        // if (!baseTokenResponse || !quoteTokenResponse) {
+        //   throw new Error("Failed to fetch token data");
+        // }
 
-        const baseTokenData = (await baseTokenResponse.json())[0];
-        const quoteTokenData = (await quoteTokenResponse.json())[0];
+        // const baseTokenData = (await baseTokenResponse.json())[0];
+        // const quoteTokenData = (await quoteTokenResponse.json())[0];
 
-        if (!baseTokenData || !quoteTokenData) {
-          throw new Error("Invalid token data");
-        }
+        // if (!baseTokenData || !quoteTokenData) {
+        //   throw new Error("Invalid token data");
+        // }
 
-        // Calculate actual token amounts
-        const baseAmount = metadata.baseReserve / Math.pow(10, metadata.extra?.tokenBaseDecimal || baseTokenData.decimals);
-        const quoteAmount = metadata.quoteReserve / Math.pow(10, metadata.extra?.tokenQuoteDecimal || quoteTokenData.decimals);
+        // // Calculate actual token amounts
+        // const baseAmount = metadata.baseReserve / Math.pow(10, metadata.extra?.tokenBaseDecimal || baseTokenData.decimals);
+        // const quoteAmount = metadata.quoteReserve / Math.pow(10, metadata.extra?.tokenQuoteDecimal || quoteTokenData.decimals);
 
-        // Calculate liquidity
-        const baseValue = baseAmount * (baseTokenData.usdPrice || 0);
-        const quoteValue = quoteAmount * (quoteTokenData.usdPrice || 0);
-        const totalLiquidity = baseValue + quoteValue;
+        // // Calculate liquidity
+        // const baseValue = baseAmount * (baseTokenData.usdPrice || 0);
+        // const quoteValue = quoteAmount * (quoteTokenData.usdPrice || 0);
+        // const totalLiquidity = baseValue + quoteValue;
 
-        // Calculate exchange rate
-        const exchangeRate = baseAmount > 0 ? (quoteAmount / baseAmount) : 0;
+        // // Calculate exchange rate
+        // const exchangeRate = baseAmount > 0 ? (quoteAmount / baseAmount) : 0;
 
-        // Calculate volume (using base token volume as proxy)
-        const volume24h = (baseTokenData.stats24h?.buyVolume || 0) + (baseTokenData.stats24h?.sellVolume || 0);
+        // // Calculate volume (using base token volume as proxy)
+        // const volume24h = (baseTokenData.stats24h?.buyVolume || 0) + (baseTokenData.stats24h?.sellVolume || 0);
 
-        // Calculate trade fee
-        const tradeFeePercent = metadata.tradeFee || 0;
+        // // Calculate trade fee
+        // const tradeFeePercent = metadata.tradeFee || 0;
 
-        const poolNumber = start + index + 1;
-        const globalIndex = start + index;
+        // const poolNumber = start + index + 1;
+        // const globalIndex = start + index;
 
         return (
-          `${poolNumber}. 📊 *${baseTokenData.symbol}-${quoteTokenData.symbol}*\n` +
-          `💧 *Liquidity:* $${totalLiquidity.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}\n` +
-          `🔄 *Rate:* 1 ${baseTokenData.symbol} = ${exchangeRate.toFixed(6)} ${quoteTokenData.symbol}\n` +
-          `📈 *Volume (24h):* $${volume24h.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}\n` +
-          `💰 *Trade Fee:* ${tradeFeePercent}%\n` +
-          `🏦 *Pool:* \`${address.slice(0, 8)}...${address.slice(-4)}\``
+          `${JSON.stringify(metadata , null , 2)}`
+          // `${poolNumber}. 📊 *${baseTokenData.symbol}-${quoteTokenData.symbol}*\n` +
+          // `💧 *Liquidity:* $${totalLiquidity.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}\n` +
+          // `🔄 *Rate:* 1 ${baseTokenData.symbol} = ${exchangeRate.toFixed(6)} ${quoteTokenData.symbol}\n` +
+          // `📈 *Volume (24h):* $${volume24h.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}\n` +
+          // `💰 *Trade Fee:* ${tradeFeePercent}%\n` +
+          // `🏦 *Pool:* \`${address.slice(0, 8)}...${address.slice(-4)}\``
         );
 
       } catch (err) {

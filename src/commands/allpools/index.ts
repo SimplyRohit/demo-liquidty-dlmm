@@ -9,6 +9,7 @@ import { handleQuoteRequest } from "./handleQuoteRequest";
 import { handleMarketAction } from "./handleMarketAction";
 import { showSpecificPoolDetails } from "./showSpecificPoolDetails";
 import type { MyContext } from "../../types";
+import type { CallbackQuery } from "telegraf/types";
 
 const rateLimits = new Map<string, { count: number; resetTime: number }>();
 const RATE_LIMIT_WINDOW = 10000;
@@ -40,6 +41,7 @@ export function setupPoolCommands(bot: Telegraf<MyContext>, liquidityBookService
       if (!ctx.session.markets || ctx.session.markets.length === 0) {
         await ctx.reply("🔄 Fetching pools from Saros DLMM...");
         ctx.session.markets = await liquidityBookServices.fetchPoolAddresses();
+        console.log(ctx.session.markets[275] , ctx.session.markets[276])
         ctx.session.lastFetchedAt = Date.now();
         ctx.session.currentPage = 1;
       }
@@ -69,7 +71,7 @@ export function setupPoolCommands(bot: Telegraf<MyContext>, liquidityBookService
         );
         return;
       }
-      const poolAddress = parts[1].trim();
+      const poolAddress = parts[1]!.trim();
       try {
         new PublicKey(poolAddress);
       } catch {
@@ -89,7 +91,7 @@ export function setupPoolCommands(bot: Telegraf<MyContext>, liquidityBookService
 
   bot.on("callback_query", async (ctx) => {
     try {
-      const data = ctx.callbackQuery?.data;
+    const data = (ctx.callbackQuery as CallbackQuery.DataQuery).data;
       if (!data) return;
 
       const userId = ctx.from?.id.toString() || 'unknown';
@@ -114,7 +116,7 @@ export function setupPoolCommands(bot: Telegraf<MyContext>, liquidityBookService
           return;
         }
 
-        const page = parseInt(action, 10);
+        const page = parseInt(action!, 10);
         if (!isNaN(page)) {
           ctx.session!.currentPage = page;
           await sendPoolMetadataPage(ctx, page, liquidityBookServices);
@@ -123,13 +125,13 @@ export function setupPoolCommands(bot: Telegraf<MyContext>, liquidityBookService
 
       if (data.startsWith("market:")) {
         const [, poolIndex] = data.split(":");
-        const index = parseInt(poolIndex, 10);
+        const index = parseInt(poolIndex!, 10);
         await showMarketDetails(ctx, index, liquidityBookServices);
       }
 
       if (data.startsWith("action:")) {
         const [, action, poolIndex] = data.split(":");
-        await handleMarketAction(ctx, action, parseInt(poolIndex), liquidityBookServices);
+        await handleMarketAction(ctx, action!, parseInt(poolIndex!), liquidityBookServices);
       }
 
       if (data === "back_to_pools") {
@@ -156,6 +158,7 @@ export function setupPoolCommands(bot: Telegraf<MyContext>, liquidityBookService
   });
 
   bot.on("text", async (ctx) => {
+
     if (!ctx.session) return;
 
     if (ctx.session.awaitingQuote && ctx.session.selectedPool) {

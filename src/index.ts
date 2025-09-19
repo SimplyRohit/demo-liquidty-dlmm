@@ -13,7 +13,7 @@ if (!BOT_TOKEN) {
 }
 
 
-const liquidityBookServices = new LiquidityBookServices({ mode: MODE.MAINNET });
+const liquidityBookServices = new LiquidityBookServices({ mode: MODE.DEVNET });
 const bot = new Telegraf<MyContext>(BOT_TOKEN);
 bot.use(session());
 
