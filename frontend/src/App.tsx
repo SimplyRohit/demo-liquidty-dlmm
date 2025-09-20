@@ -12,7 +12,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const rawTx = params.get("unsignedtransaction");
+    const rawTx = params.get("tx");
 
     if (rawTx) {
       try {

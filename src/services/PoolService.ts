@@ -30,6 +30,7 @@ export class PoolService {
         `https://lite-api.jup.ag/ultra/v1/search?query=${mint}`
       );
       const data = await response.json();
+      // @ts-ignore - Jup API returns undefined for some tokens
       const tokenData = data[0];
 
       return {

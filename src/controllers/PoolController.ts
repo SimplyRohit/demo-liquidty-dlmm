@@ -49,11 +49,12 @@ export class PoolController {
         }
       })
     );
-
     const text =
-      `🏊‍♂️ *Saros Pools (Page ${page}/${totalPages})*\n\n` +
-      results.join("\n\n─────────────────\n\n") +
-      `\n\n📊 Total Pools: ${markets.length}`;
+      "```\n" +
+      `Saros Pools (Page ${page}/${totalPages})\n\n` +
+      results.join("\n\n") +
+      `\n\nTotal Pools: ${markets.length}` +
+      "```";
 
     const keyboard = this.createPoolListKeyboard(
       items,
@@ -63,7 +64,7 @@ export class PoolController {
     );
 
     await this.updateMessage(ctx, text, {
-      parse_mode: "markdown",
+      parse_mode: "MarkdownV2",
       reply_markup: { inline_keyboard: keyboard },
     });
   }
@@ -86,7 +87,7 @@ export class PoolController {
       const keyboard = this.createPoolDetailKeyboard(source, poolIndex);
 
       await this.updateMessage(ctx, `${detailText}`, {
-        parse_mode: "Markdown",
+        parse_mode: "MarkdownV2",
         reply_markup: { inline_keyboard: keyboard },
       });
     } catch (err) {
@@ -128,18 +129,18 @@ export class PoolController {
 
     if (page > 1) {
       navigationButtons.push({
-        text: "⬅️ Prev",
+        text: "Prev",
         callback_data: `pool:${page - 1}`,
       });
     }
     if (page < totalPages) {
       navigationButtons.push({
-        text: "Next ➡️",
+        text: "Next",
         callback_data: `pool:${page + 1}`,
       });
     }
     navigationButtons.push({
-      text: "♻️ Refresh",
+      text: "Refresh",
       callback_data: "pool:refresh",
     });
 
@@ -163,17 +164,17 @@ export class PoolController {
     const baseButtons = [
       [
         {
-          text: "💱 Get Quote",
+          text: "Get Quote",
           callback_data: `action:quote:${poolIndex ?? -1}`,
         },
         {
-          text: "🔄 Build Swap",
+          text: "Build Swap",
           callback_data: `action:swap:${poolIndex ?? -1}`,
         },
       ],
       [
         {
-          text: "➕ Add Liquidity",
+          text: "Add Liquidity",
           callback_data: `action:add_liquidity:${poolIndex ?? -1}`,
         },
       ],
@@ -181,11 +182,11 @@ export class PoolController {
 
     if (source === "list") {
       baseButtons.push([
-        { text: "🔙 Back to Pools", callback_data: "back_to_pools" },
+        { text: "Back to Pools", callback_data: "back_to_pools" },
       ]);
     } else {
       baseButtons.push([
-        { text: "🔍 View All Pools", callback_data: "view_all_pools" },
+        { text: "View All Pools", callback_data: "view_all_pools" },
       ]);
     }
 
