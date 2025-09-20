@@ -5,10 +5,6 @@ import type {
 import type { MyContext } from "../../types";
 import { PublicKey } from "@solana/web3.js";
 
-function escapeMdV2(text: string): string {
-  return text.replace(/([_*\[\]()~`>#+\-=|{}.!])/g, "\\$1");
-}
-
 export async function handleSwapRequest(
   ctx: MyContext,
   poolAddress: string,
@@ -98,8 +94,6 @@ export async function handleSwapRequest(
     });
     const base64Tx = Buffer.from(serialized).toString("base64");
 
-    const escapedPool = escapeMdV2(poolAddress);
-    const escapedUser = escapeMdV2(userPubKeyStr);
     const amountOutReadable = quoteData.amountOut
       ? (Number(quoteData.amountOut) / Math.pow(10, quoteDecimals)).toFixed(6)
       : "N/A";
@@ -107,27 +101,32 @@ export async function handleSwapRequest(
     const txUrl = `http://localhost:5173/?tx=${encodeURIComponent(base64Tx)}`;
 
     await ctx.reply(
-      `${escapeMdV2("Swap Transaction Built Successfully!")}\n\n` +
-        `${escapeMdV2("Pool: BASE-QUOTE")}\n` +
-        `Pool Address: \`${escapedPool}\`\n` +
-        `Wallet: \`${escapedUser}\`\n\n` +
-        `${escapeMdV2(`Input: ${amountStr} BASE`)}` +
-        `${escapeMdV2(`Expected Output: ${amountOutReadable} QUOTE`)}` +
-        `${escapeMdV2(`Price Impact: ${quoteData.priceImpact ?? "N/A"}%`)}\n\n` +
-        `Transaction: \n\`\`\`\n${txUrl}\n\`\`\`\n\n`,
+      `Swap Transaction Built Successfully\n\n` +
+        `Pool Address: \n\`${poolAddress}\`\n\n` +
+        `Wallet: \`\n${userPubKeyStr}\`\n\n` +
+        `Input: ${amountStr} BASE` +
+        `Expected Output: ${amountOutReadable} QUOTE` +
+        `Price Impact: ${quoteData.priceImpact ?? "N/A"}%\n\n` +
+        `Transaction URL: \n\`${txUrl})\`\n\n`,
       {
         parse_mode: "Markdown",
+
         reply_markup: {
           inline_keyboard: [
             [
               {
-                text: "💱 Get New Quote",
+                text: "Sign and Send Transaction",
+                url: "https://google.com",
+              },
+
+              {
+                text: "Get New Quote",
                 callback_data: `action:quote:${ctx.session?.selectedPoolIndex || 0}`,
               },
             ],
             [
               {
-                text: "🔙 Back to Market",
+                text: "Back to Market",
                 callback_data: `market:${ctx.session?.selectedPoolIndex || 0}`,
               },
             ],

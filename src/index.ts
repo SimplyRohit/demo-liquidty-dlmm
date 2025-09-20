@@ -1,9 +1,9 @@
 import { Telegraf, session } from "telegraf";
 import { LiquidityBookServices, MODE } from "@saros-finance/dlmm-sdk";
-import type { MyContext } from "./types";
 import { setupLiquidityCommands } from "./commands/createpools/index";
 import { setupUserCommands } from "./commands/mypools/index";
 import { setupPoolCommands } from "./commands/allpools/index";
+import type { MyContext } from "./types";
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 if (!BOT_TOKEN) {

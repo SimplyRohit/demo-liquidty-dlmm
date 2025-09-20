@@ -40,7 +40,8 @@ export class PoolController {
     const results = await Promise.all(
       items.map(async (address: string, index: number) => {
         try {
-          const poolData = await this.poolService.fetchPoolData(address);
+          const poolData =
+            await this.liquidityBookServices.fetchPoolMetadata(address);
           const poolNumber = start + index + 1;
           return MessageFormatter.formatPoolSummary(poolData, poolNumber);
         } catch (err) {
@@ -50,11 +51,9 @@ export class PoolController {
       })
     );
     const text =
-      "```\n" +
       `Saros Pools (Page ${page}/${totalPages})\n\n` +
       results.join("\n\n") +
-      `\n\nTotal Pools: ${markets.length}` +
-      "```";
+      `\n\nTotal Pools: ${markets.length}`;
 
     const keyboard = this.createPoolListKeyboard(
       items,
@@ -64,7 +63,7 @@ export class PoolController {
     );
 
     await this.updateMessage(ctx, text, {
-      parse_mode: "MarkdownV2",
+      parse_mode: "Markdown",
       reply_markup: { inline_keyboard: keyboard },
     });
   }
@@ -78,16 +77,17 @@ export class PoolController {
     try {
       await this.updateMessage(ctx, "🔄 Loading pool details...");
 
-      const poolData = await this.poolService.fetchPoolData(poolAddress);
+      const poolData =
+        await this.liquidityBookServices.fetchPoolMetadata(poolAddress);
       if (!ctx.session) ctx.session = {};
       ctx.session.selectedPool = poolAddress;
       ctx.session.selectedPoolIndex = poolIndex ?? -1;
 
-      const detailText = MessageFormatter.formatPoolDetails(poolData);
+      const detailText = MessageFormatter.formatPoolSummary(poolData);
       const keyboard = this.createPoolDetailKeyboard(source, poolIndex);
 
       await this.updateMessage(ctx, `${detailText}`, {
-        parse_mode: "MarkdownV2",
+        parse_mode: "Markdown",
         reply_markup: { inline_keyboard: keyboard },
       });
     } catch (err) {

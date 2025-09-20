@@ -24,13 +24,20 @@ export function setupLiquidityCommands(
       }
 
       const connection = liquidityBookServices.connection;
+      // @ts-ignore krde bhai ignoreeee
       const tokenXMint = parts[1].trim();
+      // @ts-ignore krde bhai ignoreeee
       const tokenYMint = parts[2].trim();
+      // @ts-ignore krde bhai ignoreeee
       const tokenXDecimals = parseInt(parts[3]);
+      // @ts-ignore krde bhai ignoreeee
       const tokenYDecimals = parseInt(parts[4]);
+      // @ts-ignore krde bhai ignoreeee
       const ratePrice = parseFloat(parts[5]);
+      // @ts-ignore krde bhai ignoreeee
+
       const payerPublicKeyStr = parts[6].trim();
-      const binStep = parts[7] ? parseInt(parts[7]) : 25; // Default bin step
+      const binStep = parts[7] ? parseInt(parts[7]) : 25;
 
       // Validate token mint addresses
       let tokenXPubKey: PublicKey;
@@ -60,7 +67,6 @@ export function setupLiquidityCommands(
         return;
       }
 
-      // Check if bin step is valid
       const validBinStep = BIN_STEP_CONFIGS.find((c) => c.binStep === binStep);
       if (!validBinStep) {
         await ctx.reply(
@@ -69,7 +75,6 @@ export function setupLiquidityCommands(
         return;
       }
 
-      // Check if tokens are the same
       if (tokenXMint === tokenYMint) {
         await ctx.reply("❌ Token X and Token Y cannot be the same.");
         return;
@@ -78,13 +83,11 @@ export function setupLiquidityCommands(
       await ctx.reply("🔄 Creating pool transaction...");
 
       try {
-        // Get latest blockhash
         const { blockhash, lastValidBlockHeight } =
           await connection.getLatestBlockhash({
             commitment: "confirmed",
           });
 
-        // Create the pool transaction
         const { tx } = await liquidityBookServices.createPairWithConfig({
           tokenBase: {
             mintAddress: tokenXMint,
@@ -99,72 +102,70 @@ export function setupLiquidityCommands(
           payer: payerPubKey,
         });
 
-        // Set transaction properties
         tx.recentBlockhash = blockhash;
         tx.feePayer = payerPubKey;
 
-        // Serialize the transaction
         const serialized = tx.serialize({
           requireAllSignatures: false,
           verifySignatures: false,
         });
         const base64Tx = Buffer.from(serialized).toString("base64");
 
-        // Get token information for better display
-        const [tokenXResponse, tokenYResponse] = await Promise.all([
-          fetch(
-            `https://lite-api.jup.ag/ultra/v1/search?query=${tokenXMint}`
-          ).catch(() => null),
-          fetch(
-            `https://lite-api.jup.ag/ultra/v1/search?query=${tokenYMint}`
-          ).catch(() => null),
-        ]);
-
         let tokenXSymbol = "TOKEN_X";
         let tokenYSymbol = "TOKEN_Y";
 
-        if (tokenXResponse && tokenYResponse) {
-          const tokenXData = (await tokenXResponse.json())[0];
-          const tokenYData = (await tokenYResponse.json())[0];
-          if (tokenXData) tokenXSymbol = tokenXData.symbol;
-          if (tokenYData) tokenYSymbol = tokenYData.symbol;
-        }
-
         const successMessage =
-          `✅ **Pool Creation Transaction Built Successfully!**\n\n` +
-          `📊 **Pool Configuration:**\n` +
+          `**Pool Creation Transaction Built Successfully!**\n\n` +
+          `**Pool Configuration:**\n` +
           `• Pair: ${tokenXSymbol}-${tokenYSymbol}\n` +
-          `• Token X: \`${tokenXMint.slice(0, 8)}...${tokenXMint.slice(-4)}\` (${tokenXDecimals} decimals)\n` +
-          `• Token Y: \`${tokenYMint.slice(0, 8)}...${tokenYMint.slice(-4)}\` (${tokenYDecimals} decimals)\n` +
+          `• Token X: \`${tokenXMint}\` (${tokenXDecimals} decimals)\n` +
+          `• Token Y: \`${tokenYMint}\` (${tokenYDecimals} decimals)\n` +
           `• Rate Price: ${ratePrice}\n` +
           `• Bin Step: ${binStep}\n` +
+          // @ts-ignore krde bhai ignoreeee
+
           `• Fee Rate: ${validBinStep.feeRate}%\n\n` +
-          `👤 **Transaction Details:**\n` +
+          `**Transaction Details:**\n` +
           `• Payer: \`${payerPublicKeyStr.slice(0, 8)}...${payerPublicKeyStr.slice(-4)}\`\n` +
           `• Blockhash: \`${blockhash.slice(0, 8)}...${blockhash.slice(-4)}\`\n\n` +
-          `🔐 **Unsigned Transaction (Base64):**\n` +
+          `**Unsigned Transaction (Base64):**\n` +
           `\`\`\`\n${base64Tx}\n\`\`\`\n\n` +
-          `💡 **Next Steps:**\n` +
+          ` **Next Steps:**\n` +
           `1. Copy the transaction above\n` +
           `2. Sign it with your wallet (must be the payer address)\n` +
           `3. Submit to the Solana network\n` +
           `4. Wait for confirmation\n\n` +
-          `⚠️ **Important Notes:**\n` +
+          `**Important Notes:**\n` +
           `• Make sure you have enough SOL for transaction fees\n` +
           `• The payer wallet must sign this transaction\n` +
           `• Pool creation may take a few moments to confirm\n` +
           `• Save the pool address after successful creation`;
 
-        await ctx.reply(successMessage, { parse_mode: "Markdown" });
+        await ctx.reply(successMessage, {
+          parse_mode: "Markdown",
+          reply_markup: {
+            inline_keyboard: [
+              [
+                {
+                  text: "Copy Transaction",
+                  url: `https://solscan.io/tx/${base64Tx}`,
+                },
+              ],
+            ],
+          },
+        });
       } catch (error) {
         console.error("Pool creation error:", error);
 
         let errorMessage = "❌ Error creating pool transaction: ";
+        // @ts-ignore krde bhai ignoreeee
 
         if (error.message?.includes("already exists")) {
           errorMessage += "A pool with these parameters already exists.";
+          // @ts-ignore krde bhai ignoreeee
         } else if (error.message?.includes("insufficient")) {
           errorMessage += "Insufficient balance for transaction fees.";
+          // @ts-ignore krde bhai ignoreeee
         } else if (error.message?.includes("invalid")) {
           errorMessage += "Invalid pool parameters provided.";
         } else {
@@ -181,10 +182,11 @@ export function setupLiquidityCommands(
     }
   });
 
-  // Helper command to show available bin steps
   bot.command("binsteps", async (ctx) => {
     try {
       const binStepInfo = BIN_STEP_CONFIGS.map(
+        // @ts-ignore krde bhai ignoreeee
+
         (config) => `• **${config.binStep}**: ${config.feeRate}% fee rate`
       ).join("\n");
 

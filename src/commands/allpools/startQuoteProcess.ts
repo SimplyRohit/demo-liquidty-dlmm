@@ -1,11 +1,6 @@
 import type { LiquidityBookServices } from "@saros-finance/dlmm-sdk";
 import type { MyContext } from "../../types";
 
-function escapeMarkdownV2(text: string): string {
-  if (!text) return "";
-  return text.replace(/([_*\[\]()~`>#+-=|{}.!])/g, "\\$1");
-}
-
 export async function startQuoteProcess(
   ctx: MyContext,
   poolAddress: string,
@@ -14,15 +9,13 @@ export async function startQuoteProcess(
   try {
     const metadata = await liquidityBookServices.fetchPoolMetadata(poolAddress);
 
-    const poolAddressEscaped = escapeMarkdownV2(metadata.poolAddress);
-
     await ctx.reply(
       `*Get Quote*\n\n` +
-        `Address: \`${poolAddressEscaped}\`\n\n` +
+        `Address: \n\`${metadata.poolAddress}\`\n` +
         `To get a quote, please send the amount you want to swap:\n` +
         `Format: \`amount\``,
       {
-        parse_mode: "MarkdownV2",
+        parse_mode: "Markdown",
         reply_markup: {
           inline_keyboard: [
             [
