@@ -1,8 +1,8 @@
 import type { LiquidityBookServices } from "@saros-finance/dlmm-sdk";
-import type { MyContext } from "../types";
 import { PoolService } from "../services/PoolService";
 import { MessageFormatter } from "../services/MessageFormatter";
 import { RateLimitService } from "../services/RateLimitService";
+import type { MyContext } from "@/types";
 
 export class PoolController {
   private poolService: PoolService;
@@ -170,12 +170,6 @@ export class PoolController {
         {
           text: "Build Swap",
           callback_data: `action:swap:${poolIndex ?? -1}`,
-        },
-      ],
-      [
-        {
-          text: "Add Liquidity",
-          callback_data: `action:add_liquidity:${poolIndex ?? -1}`,
         },
       ],
     ];

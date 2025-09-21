@@ -1,5 +1,6 @@
 import type { LiquidityBookServices } from "@saros-finance/dlmm-sdk";
-import type { MyContext } from "../../types";
+import type { MyContext } from "@/types";
+
 
 export async function startQuoteProcess(
   ctx: MyContext,

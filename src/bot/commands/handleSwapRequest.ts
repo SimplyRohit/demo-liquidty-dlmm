@@ -2,8 +2,8 @@ import type {
   LiquidityBookServices,
   PoolMetadata,
 } from "@saros-finance/dlmm-sdk";
-import type { MyContext } from "../../types";
 import { PublicKey } from "@solana/web3.js";
+import type { MyContext } from "@/types";
 
 export async function handleSwapRequest(
   ctx: MyContext,

@@ -1,4 +1,5 @@
-import type { MyContext } from "../../types";
+import type { MyContext } from "@/types";
+
 
 export async function startSwapProcess(ctx: MyContext, poolAddress: string) {
   try {
