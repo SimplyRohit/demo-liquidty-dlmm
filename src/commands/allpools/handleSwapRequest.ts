@@ -98,7 +98,29 @@ export async function handleSwapRequest(
       ? (Number(quoteData.amountOut) / Math.pow(10, quoteDecimals)).toFixed(6)
       : "N/A";
 
-    const txUrl = `http://localhost:5173/?tx=${encodeURIComponent(base64Tx)}`;
+    const userId = ctx.from?.id.toString() || "";
+    const chatId = ctx.chat?.id.toString() || "";
+
+    const poolIndex = ctx.session?.selectedPoolIndex ?? -1;
+
+    if (!ctx.session) ctx.session = {};
+    // @ts-ignore ignoree krde bhaai
+    ctx.session.pendingTransaction = {
+      poolAddress,
+      poolIndex,
+      userId: ctx.from?.id.toString() || "",
+      chatId: ctx.chat?.id.toString() || "",
+      timestamp: Date.now(),
+    };
+
+    const frontendUrl = "http://localhost:5173";
+    const txParams = new URLSearchParams({
+      tx: base64Tx,
+      pool: poolAddress,
+      userId: userId,
+      chatId: chatId,
+    });
+    const txUrl = `${frontendUrl}/?${txParams.toString()}`;
 
     await ctx.reply(
       `Swap Transaction Built Successfully\n\n` +

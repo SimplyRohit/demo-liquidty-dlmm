@@ -111,6 +111,30 @@ export function setupLiquidityCommands(
         });
         const base64Tx = Buffer.from(serialized).toString("base64");
 
+        const userId = ctx.from?.id.toString() || "";
+        const chatId = ctx.chat?.id.toString() || "";
+        const poolIndex = ctx.session?.selectedPoolIndex ?? -1;
+
+        if (!ctx.session) ctx.session = {};
+        // @ts-ignore ignoree krde bhaai
+        ctx.session.pendingTransaction = {
+          poolAddress: payerPublicKeyStr,
+          poolIndex,
+          userId: ctx.from?.id.toString() || "",
+          chatId: ctx.chat?.id.toString() || "",
+          timestamp: Date.now(),
+        };
+
+        const frontendUrl = "http://localhost:5173";
+        const txParams = new URLSearchParams({
+          tx: base64Tx,
+          pool: payerPublicKeyStr,
+          userId: userId,
+          chatId: chatId,
+        });
+
+        const txUrl = `${frontendUrl}/?${txParams.toString()}`;
+
         let tokenXSymbol = "TOKEN_X";
         let tokenYSymbol = "TOKEN_Y";
 
@@ -126,20 +150,10 @@ export function setupLiquidityCommands(
 
           `• Fee Rate: ${validBinStep.feeRate}%\n\n` +
           `**Transaction Details:**\n` +
-          `• Payer: \`${payerPublicKeyStr.slice(0, 8)}...${payerPublicKeyStr.slice(-4)}\`\n` +
-          `• Blockhash: \`${blockhash.slice(0, 8)}...${blockhash.slice(-4)}\`\n\n` +
+          `• Payer: \`${payerPublicKeyStr}\`\n` +
+          `• Blockhash: \`${blockhash}\`\n\n` +
           `**Unsigned Transaction (Base64):**\n` +
-          `\`\`\`\n${base64Tx}\n\`\`\`\n\n` +
-          ` **Next Steps:**\n` +
-          `1. Copy the transaction above\n` +
-          `2. Sign it with your wallet (must be the payer address)\n` +
-          `3. Submit to the Solana network\n` +
-          `4. Wait for confirmation\n\n` +
-          `**Important Notes:**\n` +
-          `• Make sure you have enough SOL for transaction fees\n` +
-          `• The payer wallet must sign this transaction\n` +
-          `• Pool creation may take a few moments to confirm\n` +
-          `• Save the pool address after successful creation`;
+          `Transaction URL: \n\`${txUrl})\`\n\n`;
 
         await ctx.reply(successMessage, {
           parse_mode: "Markdown",

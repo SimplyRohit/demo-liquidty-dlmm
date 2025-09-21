@@ -15,6 +15,85 @@ const liquidityBookServices = new LiquidityBookServices({ mode: MODE.DEVNET });
 const bot = new Telegraf<MyContext>(BOT_TOKEN);
 bot.use(session());
 
+const PORT = "3001";
+Bun.serve({
+  port: PORT,
+  routes: {
+    "/health": async () => {
+      return Response.json("im okaay bro thanks");
+    },
+    "/webhook/transaction-result": async (req) => {
+      console.log("Received transaction result webhook");
+
+      if (req.method === "OPTIONS") {
+        return new Response(null, {
+          status: 204,
+          headers: {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+          },
+        });
+      }
+
+      if (req.method !== "POST") {
+        return new Response(
+          JSON.stringify({ success: false, error: "Method Not Allowed" }),
+          {
+            status: 405,
+            headers: {
+              "Content-Type": "application/json",
+              "Access-Control-Allow-Origin": "*",
+              "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+              "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            },
+          }
+        );
+      }
+
+      try {
+        const body = await req.json();
+
+        // @ts-ignore
+        const { success, txId, error, poolAddress, userId, chatId } = body;
+        console.log("Received transaction result:", body);
+
+        return new Response(
+          JSON.stringify({ success: true, message: "Notification sent" }),
+          {
+            status: 200,
+            headers: {
+              "Content-Type": "application/json",
+              "Access-Control-Allow-Origin": "*",
+              "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+              "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            },
+          }
+        );
+      } catch (err: any) {
+        console.error("Webhook error:", err);
+        return new Response(
+          JSON.stringify({ success: false, error: err.message }),
+          {
+            status: 500,
+            headers: {
+              "Content-Type": "application/json",
+              "Access-Control-Allow-Origin": "*",
+              "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+              "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            },
+          }
+        );
+      }
+    },
+  },
+  async fetch(req) {
+    return new Response("Not Found", { status: 404 });
+  },
+});
+
+console.log(`🚀 Webhook server running on http://localhost:${PORT}`);
+
 bot.telegram.setMyCommands([
   { command: "pools", description: "View all pools with pagination" },
   { command: "pool", description: "/pool <pooladdress>" },
