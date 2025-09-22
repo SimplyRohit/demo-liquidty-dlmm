@@ -1,20 +1,23 @@
 import { Telegraf } from "telegraf";
 import { PublicKey } from "@solana/web3.js";
 import { BIN_STEP_CONFIGS, type LiquidityBookServices } from "@saros-finance/dlmm-sdk";
-import { PoolController } from "../controllers/PoolController";
 import { startQuoteProcess } from "./startQuoteProcess";
 import { startSwapProcess } from "./startSwapProcess";
 import { handleSwapRequest } from "./handleSwapRequest";
 import { handleQuoteRequest } from "./handleQuoteRequest";
-import type { MyContext } from "@/types";
+import type { MyContext } from "../../types";
 import { handleRemoveLiquidityRequest } from "./handleRemoveLiquidity";
 import { handleAddLiquidityRequest } from "./handleAddLiquidity";
+import { PoolController } from "../controllers/PoolController";
 
 export function setupCommands(
   bot: Telegraf<MyContext>,
   liquidityBookServices: LiquidityBookServices
 ) {
   const poolController = new PoolController(liquidityBookServices);
+  bot.start(async (ctx) => {
+    await ctx.reply(`Welcome to the Saros DLMM Bot!`);
+  });
 
 
   bot.command("pools", async (ctx) => {
@@ -163,8 +166,8 @@ export function setupCommands(
           await connection.getLatestBlockhash({
             commitment: "confirmed",
           });
-
         const { tx } = await liquidityBookServices.createPairWithConfig({
+        
           tokenBase: {
             mintAddress: tokenXMint,
             decimal: tokenXDecimals,
@@ -195,13 +198,15 @@ export function setupCommands(
         // @ts-ignore ignoree krde bhaai
         ctx.session.pendingTransaction = {
           poolAddress: payerPublicKeyStr,
+                  // @ts-ignore ignoree krde bhaai
+
           poolIndex,
           userId: ctx.from?.id.toString() || "",
           chatId: ctx.chat?.id.toString() || "",
           timestamp: Date.now(),
         };
 
-        const frontendUrl = "http://localhost:5173";
+        const frontendUrl = process.env.frontendUrl
         const txParams = new URLSearchParams({
           tx: base64Tx,
           pool: payerPublicKeyStr,

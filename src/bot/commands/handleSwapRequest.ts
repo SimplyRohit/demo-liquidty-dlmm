@@ -113,7 +113,7 @@ export async function handleSwapRequest(
       timestamp: Date.now(),
     };
 
-    const frontendUrl = "http://localhost:5173";
+    const frontendUrl = "http://localhost:3001";
     const txParams = new URLSearchParams({
       tx: base64Tx,
       pool: poolAddress,
