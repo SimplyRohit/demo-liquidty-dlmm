@@ -10,9 +10,9 @@ export async function handleSwapRequest(
   try {
     //@ts-ignore ignoree krde bhaai
     const parts = ctx.message?.text?.trim().split(/\s+/) || [];
-    if (parts.length < 2) {
+    if (parts.length < 3) {
       await ctx.reply(
-        `<i>Invalid format!\n\nRequired: amount your_wallet_address\nExample: 1.5 YOUR_WALLET_ADDRESS</i>`,
+        `<i>Invalid format!\n\nRequired: amount your_wallet_address Swap(true = BASE -> QUOTE : false = QUOTE -> BASE)\nExample: 1.5 YOUR_WALLET_ADDRESS true</i>`,
         { parse_mode: 'HTML' },
       );
       return;
@@ -20,6 +20,7 @@ export async function handleSwapRequest(
 
     const amountStr = parts[0].trim();
     const userPubKeyStr = parts[1].trim();
+    const swapForYStr = parts[2].trim().toLowerCase();
 
     const amountFloat = parseFloat(amountStr);
     if (isNaN(amountFloat) || amountFloat <= 0) {
@@ -38,11 +39,18 @@ export async function handleSwapRequest(
       });
       return;
     }
+    if (swapForYStr !== 'true' && swapForYStr !== 'false') {
+      await ctx.reply("<i>Swap direction must be 'true' or 'false'</i>", {
+        parse_mode: 'HTML',
+      });
+      return;
+    }
 
     await ctx.reply('<i>Building swap transaction...</i>', {
       parse_mode: 'HTML',
     });
 
+    const swapForY: boolean = swapForYStr === 'true';
     const metadata: PoolMetadata =
       await liquidityBookServices.fetchPoolMetadata(poolAddress);
 
@@ -55,7 +63,7 @@ export async function handleSwapRequest(
     const quoteData = await liquidityBookServices.getQuote({
       amount: amountBigInt,
       isExactInput: true,
-      swapForY: true,
+      swapForY: swapForY,
       pair: new PublicKey(poolAddress),
       tokenBase: new PublicKey(metadata.baseMint),
       tokenQuote: new PublicKey(metadata.quoteMint),
@@ -71,7 +79,7 @@ export async function handleSwapRequest(
       tokenMintY: new PublicKey(metadata.quoteMint),
       otherAmountOffset: (quoteData as any).otherAmountOffset ?? 0,
       isExactInput: true,
-      swapForY: true,
+      swapForY: swapForY,
       pair: new PublicKey(poolAddress),
       payer: userPub,
     });

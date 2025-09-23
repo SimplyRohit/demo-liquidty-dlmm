@@ -10,11 +10,12 @@ export async function handleRemoveLiquidityRequest(
   liquidityBookServices: LiquidityBookServices,
 ) {
   try {
+    // @ts-ignore krde ignore yaar
     const parts = ctx.message?.text?.trim().split(/\s+/) || [];
     if (parts.length < 3) {
       await ctx.reply(
-        `❌ Invalid format!\n\n**Required:** \`binRangeLower binRangeUpper userPublicKey\`\n**Example:** \`-3 3 YOUR_WALLET_ADDRESS\``,
-        { parse_mode: 'Markdown' },
+        `<i>Invalid format!\n\nRequired: <pre>binRangeLower binRangeUpper userPublicKey</pre>\nExample: <pre>-3 3 YOUR_WALLET_ADDRESS</pre></i>`,
+        { parse_mode: 'HTML' },
       );
       return;
     }
@@ -23,13 +24,17 @@ export async function handleRemoveLiquidityRequest(
     const binRangeUpper = parseInt(parts[1]);
     const userPubKeyStr = parts[2].trim();
 
-    // Validate inputs
     if (
       isNaN(binRangeLower) ||
       isNaN(binRangeUpper) ||
       binRangeLower >= binRangeUpper
     ) {
-      await ctx.reply('❌ Invalid bin range. Lower must be less than upper.');
+      await ctx.reply(
+        `<i>Invalid bin range. Lower must be less than upper.</i>`,
+        {
+          parse_mode: 'HTML',
+        },
+      );
       return;
     }
 
@@ -39,33 +44,35 @@ export async function handleRemoveLiquidityRequest(
       userPub = new PublicKey(userPubKeyStr);
       pair = new PublicKey(poolAddress);
     } catch {
-      await ctx.reply('❌ Invalid wallet address or pool address.');
+      await ctx.reply(`<i>Invalid wallet address or pool address.</i>`, {
+        parse_mode: 'HTML',
+      });
       return;
     }
 
-    await ctx.reply('🔄 Building remove liquidity transaction...');
+    await ctx.reply(`<i>Building remove liquidity transaction...</i>`, {
+      parse_mode: 'HTML',
+    });
 
-    // Get pool metadata and pair info
     const metadata = await liquidityBookServices.fetchPoolMetadata(poolAddress);
     const pairInfo = await liquidityBookServices.getPairAccount(pair);
     const activeId = pairInfo.activeId;
 
-    // Calculate absolute bin range
     const absoluteRangeLower = activeId + binRangeLower;
     const absoluteRangeUpper = activeId + binRangeUpper;
 
-    // Get user positions
     const positions = await liquidityBookServices.getUserPositions({
       payer: userPub,
       pair,
     });
 
     if (positions.length === 0) {
-      await ctx.reply('❌ No liquidity positions found in this pool.');
+      await ctx.reply(`<i>No liquidity positions found in this pool.</i>`, {
+        parse_mode: 'HTML',
+      });
       return;
     }
 
-    // Filter positions that overlap with the requested range
     const positionsToRemove = positions.filter((position: PositionInfo) => {
       return !(
         position.upperBinId < absoluteRangeLower ||
@@ -75,13 +82,12 @@ export async function handleRemoveLiquidityRequest(
 
     if (positionsToRemove.length === 0) {
       await ctx.reply(
-        `❌ No positions found in the specified range [${binRangeLower}, ${binRangeUpper}].\n\n` +
-          `Your positions are in different bins. Use /mypools to check your current positions.`,
+        `<i>No positions found in the specified range [${binRangeLower}, ${binRangeUpper}].\n\nYour positions are in different bins. Use /mypools to check your current positions.</i>`,
+        { parse_mode: 'HTML' },
       );
       return;
     }
 
-    // Prepare position list for removal
     const maxPositionList = positionsToRemove.map((position: PositionInfo) => {
       const start =
         absoluteRangeLower > position.lowerBinId
@@ -103,36 +109,34 @@ export async function handleRemoveLiquidityRequest(
     const connection = liquidityBookServices.connection;
     const { blockhash } = await connection.getLatestBlockhash();
 
-    // Build remove liquidity transactions
     const tokenX = new PublicKey(metadata.baseMint);
     const tokenY = new PublicKey(metadata.quoteMint);
 
-    const { txs, txCreateAccount, txCloseAccount } =
-      await liquidityBookServices.removeMultipleLiquidity({
-        maxPositionList,
-        payer: userPub,
-        type: RemoveLiquidityType.Both, // Remove both tokens
-        pair,
-        tokenMintX: tokenX,
-        tokenMintY: tokenY,
-        activeId,
-      });
+    const { txs } = await liquidityBookServices.removeMultipleLiquidity({
+      maxPositionList,
+      payer: userPub,
+      type: RemoveLiquidityType.Both,
+      pair,
+      tokenMintX: tokenX,
+      tokenMintY: tokenY,
+      activeId,
+    });
 
-    // For simplicity, we'll send the main removal transaction
     let transactionToSend: Transaction;
 
     if (txs.length > 0) {
+      // @ts-ignore lol
       transactionToSend = txs[0];
     } else {
-      await ctx.reply('❌ No valid transaction to send.');
+      await ctx.reply(`<i>No valid transaction to send.</i>`, {
+        parse_mode: 'HTML',
+      });
       return;
     }
 
-    // Set transaction properties
     transactionToSend.recentBlockhash = blockhash;
     transactionToSend.feePayer = userPub;
 
-    // Serialize transaction
     const serialized = transactionToSend.serialize({
       requireAllSignatures: false,
       verifySignatures: false,
@@ -143,8 +147,7 @@ export async function handleRemoveLiquidityRequest(
     const userId = ctx.from?.id.toString() || '';
     const chatId = ctx.chat?.id.toString() || '';
 
-    // Build frontend URL
-    const frontendUrl = 'http://localhost:5173';
+    const frontendUrl = process.env.frontendUrl;
     const txParams = new URLSearchParams({
       tx: base64Tx,
       pool: poolAddress,
@@ -154,29 +157,28 @@ export async function handleRemoveLiquidityRequest(
     const txUrl = `${frontendUrl}/?${txParams.toString()}`;
 
     const message =
-      `**Remove Liquidity Transaction Built**\n\n` +
-      `**Pool:** \`${poolAddress}\`\n` +
-      `**Wallet:** \`${userPubKeyStr}\`\n\n` +
-      `**Details:**\n` +
-      `• Bin Range: [${binRangeLower}, ${binRangeUpper}]\n` +
-      `• Active Bin: ${activeId}\n` +
-      `• Absolute Range: [${absoluteRangeLower}, ${absoluteRangeUpper}]\n` +
-      `• Positions to Remove: ${positionsToRemove.length}\n\n` +
-      `**Transaction URL:**\n\`${txUrl}\``;
+      `<i>Remove Liquidity Transaction Built</i>\n\n` +
+      `<i>Pool:</i> <pre>${poolAddress}</pre>\n` +
+      `<i>Wallet:</i> <pre>${userPubKeyStr}</pre>\n\n` +
+      `<i>Details:</i>\n` +
+      `<i>Bin Range: [${binRangeLower}, ${binRangeUpper}]</i>\n` +
+      `<i>Active Bin: ${activeId}</i>\n` +
+      `<i>Absolute Range: [${absoluteRangeLower}, ${absoluteRangeUpper}]</i>\n` +
+      `<i>Positions to Remove: ${positionsToRemove.length}</i>`;
 
     await ctx.reply(message, {
-      parse_mode: 'Markdown',
+      parse_mode: 'HTML',
       reply_markup: {
         inline_keyboard: [
           [
             {
-              text: '🔐 Sign and Send Transaction',
+              text: 'Sign and Send Transaction',
               url: txUrl,
             },
           ],
           [
             {
-              text: '🔙 Back to My Pools',
+              text: 'Back to My Pools',
               callback_data: 'mypools:refresh',
             },
           ],
@@ -184,7 +186,6 @@ export async function handleRemoveLiquidityRequest(
       },
     });
 
-    // Store pending transaction info
     if (!ctx.session) ctx.session = {};
     ctx.session.pendingTransaction = {
       poolAddress,
@@ -196,7 +197,8 @@ export async function handleRemoveLiquidityRequest(
   } catch (err) {
     console.error('Remove liquidity error:', err);
     await ctx.reply(
-      `❌ Error building remove liquidity transaction: ${String((err as Error)?.message ?? err)}`,
+      `<i>Error building remove liquidity transaction: ${String((err as Error)?.message ?? err)}</i>`,
+      { parse_mode: 'HTML' },
     );
   }
 }

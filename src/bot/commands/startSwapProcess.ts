@@ -6,8 +6,8 @@ export async function startSwapProcess(ctx: MyContext, poolAddress: string) {
       `<i>Build Swap Transaction\n\n` +
       `Address:</i>\n<pre>${poolAddress}</pre>\n\n` +
       `<i>To build a swap transaction, please send:\n\n` +
-      `Format: amount your_public_key\n` +
-      `Example: 1.5 YOUR_WALLET_ADDRESS\n\n` +
+      `Format: amount your_public_key Swap(true = BASE -> QUOTE : false = QUOTE -> BASE)\n` +
+      `Example: 1.5 YOUR_WALLET_ADDRESS true\n\n` +
       `Note: This will create an unsigned transaction that you can sign and execute</i>\n`;
 
     await ctx.reply(message, {

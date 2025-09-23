@@ -1,6 +1,5 @@
 import type { MyContext } from '@/types';
-import { convertBalanceToWei, humanToBN } from '@/utils';
-import { BN } from '@coral-xyz/anchor';
+import { humanToBN } from '@/utils';
 import {
   findPosition,
   getBinRange,
@@ -21,8 +20,8 @@ export async function handleAddLiquidityRequest(
     const parts = ctx.message?.text?.trim().split(/\s+/) || [];
     if (parts.length < 5) {
       await ctx.reply(
-        `Invalid format!\n\n**Required:** \`baseAmount quoteAmount binRangeLower binRangeUpper userPublicKey\`\n**Example:** \`10 10 -5 5 YOUR_WALLET_ADDRESS\``,
-        { parse_mode: 'Markdown' },
+        `<i>Invalid format!\n\nRequired:\n<pre>baseAmount quoteAmount binRangeLower binRangeUpper userPublicKey</pre>\nExample:\n<pre>10 10 -5 5 YOUR_WALLET_ADDRESS</pre></i>`,
+        { parse_mode: 'HTML' },
       );
       return;
     }
@@ -40,7 +39,9 @@ export async function handleAddLiquidityRequest(
       baseAmount <= 0 ||
       quoteAmount <= 0
     ) {
-      await ctx.reply('Please provide valid positive amounts.');
+      await ctx.reply('<i>Please provide valid positive amounts.</i>', {
+        parse_mode: 'HTML',
+      });
       return;
     }
     if (
@@ -48,11 +49,16 @@ export async function handleAddLiquidityRequest(
       isNaN(binRangeUpper) ||
       binRangeLower >= binRangeUpper
     ) {
-      await ctx.reply('Invalid bin range. Lower must be less than upper.');
+      await ctx.reply(
+        '<i>Invalid bin range. Lower must be less than upper.</i>',
+        { parse_mode: 'HTML' },
+      );
       return;
     }
 
-    await ctx.reply('Building add liquidity transaction...');
+    await ctx.reply('<i>Building add liquidity transaction...</i>', {
+      parse_mode: 'HTML',
+    });
 
     const metadata = await liquidityBookServices.fetchPoolMetadata(poolAddress);
     const tokenX = metadata.baseMint;
@@ -65,7 +71,10 @@ export async function handleAddLiquidityRequest(
       !metadata.extra?.tokenBaseDecimal ||
       !metadata.extra?.tokenQuoteDecimal
     ) {
-      await ctx.reply('Pool metadata is missing required decimal information.');
+      await ctx.reply(
+        '<i>Pool metadata is missing required decimal information.</i>',
+        { parse_mode: 'HTML' },
+      );
       return;
     }
 
@@ -228,7 +237,6 @@ export async function handleAddLiquidityRequest(
           binArrayUpper,
           liquidityDistribution,
           positionMint,
-          needsPositionCreation,
         } = item;
         const addLiquidityTx = new Transaction();
 
@@ -311,20 +319,20 @@ export async function handleAddLiquidityRequest(
     const txUrl = `${frontendUrl}/?${txParams.toString()}`;
 
     const message =
-      `**Add Liquidity Transaction Built**\n\n` +
-      `**Pool:** \`${poolAddress.slice(0, 8)}...${poolAddress.slice(-8)}\`\n` +
-      `**Wallet:** \`${userPubKeyStr.slice(0, 8)}...${userPubKeyStr.slice(-8)}\`\n\n` +
-      `**Amounts:** ${baseAmount} base + ${quoteAmount} quote\n` +
-      `**Range:** [${binRangeLower}, ${binRangeUpper}] (Active: ${activeBin})\n` +
-      `**Transactions:** ${allTxs.length} tx${allTxs.length > 1 ? 's' : ''} ready\n\n`;
+      `<i>Add Liquidity Transaction Built\n\n` +
+      `Pool: <pre>${poolAddress}</pre>\n` +
+      `Wallet: <pre>${userPubKeyStr}</pre>\n\n` +
+      `Amounts: ${baseAmount} base + ${quoteAmount} quote\n` +
+      `Range: [${binRangeLower}, ${binRangeUpper}] (Active: ${activeBin})\n` +
+      `Transactions: ${allTxs.length} tx${allTxs.length > 1 ? 's' : ''} ready\n\n</i>`;
 
     await ctx.reply(message, {
-      parse_mode: 'Markdown',
+      parse_mode: 'HTML',
       reply_markup: {
         inline_keyboard: [
           [
             {
-              text: 'Pay for Tranction',
+              text: 'Pay for Transaction',
               url: txUrl,
             },
           ],
@@ -344,20 +352,24 @@ export async function handleAddLiquidityRequest(
   } catch (err) {
     console.error('Add liquidity error:', err);
     await ctx.reply(
-      `Error building add liquidity transaction: ${String((err as Error)?.message ?? err)}`,
+      `<i>Error building add liquidity transaction: ${String(
+        (err as Error)?.message ?? err,
+      )}</i>`,
+      { parse_mode: 'HTML' },
     );
   }
 }
 
-function createUniformDistribution(binRange: [number, number]) {
+function createUniformDistribution(relativeRange: [number, number]) {
   const distribution = [];
-  const totalBins = binRange[1] - binRange[0] + 1;
-  const distributionPerBin = 100 / totalBins;
-  for (let i = binRange[0]; i <= binRange[1]; i++) {
+  const totalBins = relativeRange[1] - relativeRange[0] + 1;
+  const perBin = 100 / totalBins;
+
+  for (let i = relativeRange[0]; i <= relativeRange[1]; i++) {
     distribution.push({
       relativeBinId: i,
-      distributionX: distributionPerBin,
-      distributionY: distributionPerBin,
+      distributionX: perBin,
+      distributionY: perBin,
     });
   }
   return distribution;
