@@ -21,15 +21,16 @@
     "bn.js": "^5.2.2",
     "bun-plugin-tailwind": "^0.0.15",
     "grammy": "^1.38.2",
-    "react": "^19",
-    "react-dom": "^19",
-    "tailwindcss": "^4.1.11",
+    "prettier": "^3.6.2",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "tailwindcss": "^4.1.13",
     "telegraf": "^4.16.3",
     "zod": "^4.1.11"
   },
   "devDependencies": {
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
+    "@types/react": "^19.1.13",
+    "@types/react-dom": "^19.1.9",
     "@types/bun": "latest",
     "concurrently": "^8.2.2"
   }

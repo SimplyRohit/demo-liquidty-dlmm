@@ -1,13 +1,9 @@
-import type {
-  LiquidityBookServices,
-  PoolMetadata,
-} from "@saros-finance/dlmm-sdk";
+import { LiquidityBookServices, PoolMetadata } from "@saros-finance/dlmm-sdk";
 
 export class PoolService {
   constructor(private liquidityBookServices: LiquidityBookServices) {}
-
   async fetchPoolData(
-    poolAddress: string
+    poolAddress: string,
   ): Promise<{ metadata: PoolMetadata; address: string }> {
     const metadata =
       await this.liquidityBookServices.fetchPoolMetadata(poolAddress);

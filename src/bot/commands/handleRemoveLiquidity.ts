@@ -1,20 +1,20 @@
-import type { LiquidityBookServices } from "@saros-finance/dlmm-sdk";
-import { RemoveLiquidityType } from "@saros-finance/dlmm-sdk";
-import type { MyContext } from "@/types";
-import { PublicKey, Transaction } from "@solana/web3.js";
-import { PositionInfo } from "@saros-finance/dlmm-sdk/types/services";
+import { LiquidityBookServices } from '@saros-finance/dlmm-sdk';
+import { RemoveLiquidityType } from '@saros-finance/dlmm-sdk';
+import { MyContext } from '@/types';
+import { PublicKey, Transaction } from '@solana/web3.js';
+import { PositionInfo } from '@saros-finance/dlmm-sdk/types/services';
 
 export async function handleRemoveLiquidityRequest(
   ctx: MyContext,
   poolAddress: string,
-  liquidityBookServices: LiquidityBookServices
+  liquidityBookServices: LiquidityBookServices,
 ) {
   try {
     const parts = ctx.message?.text?.trim().split(/\s+/) || [];
     if (parts.length < 3) {
       await ctx.reply(
         `❌ Invalid format!\n\n**Required:** \`binRangeLower binRangeUpper userPublicKey\`\n**Example:** \`-3 3 YOUR_WALLET_ADDRESS\``,
-        { parse_mode: "Markdown" }
+        { parse_mode: 'Markdown' },
       );
       return;
     }
@@ -24,8 +24,12 @@ export async function handleRemoveLiquidityRequest(
     const userPubKeyStr = parts[2].trim();
 
     // Validate inputs
-    if (isNaN(binRangeLower) || isNaN(binRangeUpper) || binRangeLower >= binRangeUpper) {
-      await ctx.reply("❌ Invalid bin range. Lower must be less than upper.");
+    if (
+      isNaN(binRangeLower) ||
+      isNaN(binRangeUpper) ||
+      binRangeLower >= binRangeUpper
+    ) {
+      await ctx.reply('❌ Invalid bin range. Lower must be less than upper.');
       return;
     }
 
@@ -35,11 +39,11 @@ export async function handleRemoveLiquidityRequest(
       userPub = new PublicKey(userPubKeyStr);
       pair = new PublicKey(poolAddress);
     } catch {
-      await ctx.reply("❌ Invalid wallet address or pool address.");
+      await ctx.reply('❌ Invalid wallet address or pool address.');
       return;
     }
 
-    await ctx.reply("🔄 Building remove liquidity transaction...");
+    await ctx.reply('🔄 Building remove liquidity transaction...');
 
     // Get pool metadata and pair info
     const metadata = await liquidityBookServices.fetchPoolMetadata(poolAddress);
@@ -57,27 +61,36 @@ export async function handleRemoveLiquidityRequest(
     });
 
     if (positions.length === 0) {
-      await ctx.reply("❌ No liquidity positions found in this pool.");
+      await ctx.reply('❌ No liquidity positions found in this pool.');
       return;
     }
 
     // Filter positions that overlap with the requested range
     const positionsToRemove = positions.filter((position: PositionInfo) => {
-      return !(position.upperBinId < absoluteRangeLower || position.lowerBinId > absoluteRangeUpper);
+      return !(
+        position.upperBinId < absoluteRangeLower ||
+        position.lowerBinId > absoluteRangeUpper
+      );
     });
 
     if (positionsToRemove.length === 0) {
       await ctx.reply(
         `❌ No positions found in the specified range [${binRangeLower}, ${binRangeUpper}].\n\n` +
-        `Your positions are in different bins. Use /mypools to check your current positions.`
+          `Your positions are in different bins. Use /mypools to check your current positions.`,
       );
       return;
     }
 
     // Prepare position list for removal
     const maxPositionList = positionsToRemove.map((position: PositionInfo) => {
-      const start = absoluteRangeLower > position.lowerBinId ? absoluteRangeLower : position.lowerBinId;
-      const end = absoluteRangeUpper < position.upperBinId ? absoluteRangeUpper : position.upperBinId;
+      const start =
+        absoluteRangeLower > position.lowerBinId
+          ? absoluteRangeLower
+          : position.lowerBinId;
+      const end =
+        absoluteRangeUpper < position.upperBinId
+          ? absoluteRangeUpper
+          : position.upperBinId;
 
       return {
         position: position.position,
@@ -94,23 +107,24 @@ export async function handleRemoveLiquidityRequest(
     const tokenX = new PublicKey(metadata.baseMint);
     const tokenY = new PublicKey(metadata.quoteMint);
 
-    const { txs, txCreateAccount, txCloseAccount } = await liquidityBookServices.removeMultipleLiquidity({
-      maxPositionList,
-      payer: userPub,
-      type: RemoveLiquidityType.Both, // Remove both tokens
-      pair,
-      tokenMintX: tokenX,
-      tokenMintY: tokenY,
-      activeId,
-    });
+    const { txs, txCreateAccount, txCloseAccount } =
+      await liquidityBookServices.removeMultipleLiquidity({
+        maxPositionList,
+        payer: userPub,
+        type: RemoveLiquidityType.Both, // Remove both tokens
+        pair,
+        tokenMintX: tokenX,
+        tokenMintY: tokenY,
+        activeId,
+      });
 
     // For simplicity, we'll send the main removal transaction
     let transactionToSend: Transaction;
-    
+
     if (txs.length > 0) {
       transactionToSend = txs[0];
     } else {
-      await ctx.reply("❌ No valid transaction to send.");
+      await ctx.reply('❌ No valid transaction to send.');
       return;
     }
 
@@ -123,14 +137,14 @@ export async function handleRemoveLiquidityRequest(
       requireAllSignatures: false,
       verifySignatures: false,
     });
-    
-    const base64Tx = Buffer.from(serialized).toString("base64");
 
-    const userId = ctx.from?.id.toString() || "";
-    const chatId = ctx.chat?.id.toString() || "";
+    const base64Tx = Buffer.from(serialized).toString('base64');
+
+    const userId = ctx.from?.id.toString() || '';
+    const chatId = ctx.chat?.id.toString() || '';
 
     // Build frontend URL
-    const frontendUrl = "http://localhost:5173";
+    const frontendUrl = 'http://localhost:5173';
     const txParams = new URLSearchParams({
       tx: base64Tx,
       pool: poolAddress,
@@ -151,19 +165,19 @@ export async function handleRemoveLiquidityRequest(
       `**Transaction URL:**\n\`${txUrl}\``;
 
     await ctx.reply(message, {
-      parse_mode: "Markdown",
+      parse_mode: 'Markdown',
       reply_markup: {
         inline_keyboard: [
           [
             {
-              text: "🔐 Sign and Send Transaction",
+              text: '🔐 Sign and Send Transaction',
               url: txUrl,
             },
           ],
           [
             {
-              text: "🔙 Back to My Pools",
-              callback_data: "mypools:refresh",
+              text: '🔙 Back to My Pools',
+              callback_data: 'mypools:refresh',
             },
           ],
         ],
@@ -177,13 +191,12 @@ export async function handleRemoveLiquidityRequest(
       userId,
       chatId,
       timestamp: Date.now(),
-      type: "remove_liquidity",
+      type: 'remove_liquidity',
     };
-
   } catch (err) {
-    console.error("Remove liquidity error:", err);
+    console.error('Remove liquidity error:', err);
     await ctx.reply(
-      `❌ Error building remove liquidity transaction: ${String((err as Error)?.message ?? err)}`
+      `❌ Error building remove liquidity transaction: ${String((err as Error)?.message ?? err)}`,
     );
   }
 }

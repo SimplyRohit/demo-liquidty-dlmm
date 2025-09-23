@@ -1,6 +1,6 @@
-import type { MyContext } from "@/types";
-import { convertBalanceToWei, humanToBN } from "@/utils";
-import { BN} from "@coral-xyz/anchor";
+import type { MyContext } from '@/types';
+import { convertBalanceToWei, humanToBN } from '@/utils';
+import { BN } from '@coral-xyz/anchor';
 import {
   findPosition,
   getBinRange,
@@ -8,21 +8,21 @@ import {
   getMaxPosition,
   LiquidityShape,
   type LiquidityBookServices,
-} from "@saros-finance/dlmm-sdk";
-import { PublicKey, Transaction, Keypair } from "@solana/web3.js";
+} from '@saros-finance/dlmm-sdk';
+import { PublicKey, Transaction, Keypair } from '@solana/web3.js';
 
 export async function handleAddLiquidityRequest(
   ctx: MyContext,
   poolAddress: string,
-  liquidityBookServices: LiquidityBookServices
+  liquidityBookServices: LiquidityBookServices,
 ) {
   try {
     // @ts-ignore
     const parts = ctx.message?.text?.trim().split(/\s+/) || [];
     if (parts.length < 5) {
       await ctx.reply(
-        `❌ Invalid format!\n\n**Required:** \`baseAmount quoteAmount binRangeLower binRangeUpper userPublicKey\`\n**Example:** \`10 10 -5 5 YOUR_WALLET_ADDRESS\``,
-        { parse_mode: "Markdown" }
+        `Invalid format!\n\n**Required:** \`baseAmount quoteAmount binRangeLower binRangeUpper userPublicKey\`\n**Example:** \`10 10 -5 5 YOUR_WALLET_ADDRESS\``,
+        { parse_mode: 'Markdown' },
       );
       return;
     }
@@ -34,16 +34,25 @@ export async function handleAddLiquidityRequest(
     const userPubKeyStr = parts[4].trim();
     const userPubKey = new PublicKey(userPubKeyStr);
 
-    if (isNaN(baseAmount) || isNaN(quoteAmount) || baseAmount <= 0 || quoteAmount <= 0) {
-      await ctx.reply("❌ Please provide valid positive amounts.");
+    if (
+      isNaN(baseAmount) ||
+      isNaN(quoteAmount) ||
+      baseAmount <= 0 ||
+      quoteAmount <= 0
+    ) {
+      await ctx.reply('Please provide valid positive amounts.');
       return;
     }
-    if (isNaN(binRangeLower) || isNaN(binRangeUpper) || binRangeLower >= binRangeUpper) {
-      await ctx.reply("❌ Invalid bin range. Lower must be less than upper.");
+    if (
+      isNaN(binRangeLower) ||
+      isNaN(binRangeUpper) ||
+      binRangeLower >= binRangeUpper
+    ) {
+      await ctx.reply('Invalid bin range. Lower must be less than upper.');
       return;
     }
 
-    await ctx.reply("🔄 Building add liquidity transaction...");
+    await ctx.reply('Building add liquidity transaction...');
 
     const metadata = await liquidityBookServices.fetchPoolMetadata(poolAddress);
     const tokenX = metadata.baseMint;
@@ -52,9 +61,11 @@ export async function handleAddLiquidityRequest(
     const shape = LiquidityShape.Spot;
     const binRange = [binRangeLower, binRangeUpper] as [number, number];
 
-    // Validate metadata has required properties
-    if (!metadata.extra?.tokenBaseDecimal || !metadata.extra?.tokenQuoteDecimal) {
-      await ctx.reply("❌ Pool metadata is missing required decimal information.");
+    if (
+      !metadata.extra?.tokenBaseDecimal ||
+      !metadata.extra?.tokenQuoteDecimal
+    ) {
+      await ctx.reply('Pool metadata is missing required decimal information.');
       return;
     }
 
@@ -72,7 +83,10 @@ export async function handleAddLiquidityRequest(
     let currentBlockhash = blockhash;
     let currentLastValidBlockHeight = lastValidBlockHeight;
 
-    const maxPositionList = getMaxPosition([binRange[0], binRange[1]], activeBin);
+    const maxPositionList = getMaxPosition(
+      [binRange[0], binRange[1]],
+      activeBin,
+    );
     const maxLiqDistribution = createUniformDistribution(binRange);
     const binArrayList = getMaxBinArray(binRange, activeBin);
 
@@ -95,7 +109,7 @@ export async function handleAddLiquidityRequest(
           payer: userPubKey,
           transaction: initialTransaction as any,
         });
-      })
+      }),
     );
 
     await Promise.all(
@@ -111,7 +125,7 @@ export async function handleAddLiquidityRequest(
           tokenAddress: new PublicKey(token),
           transaction: initialTransaction as any,
         });
-      })
+      }),
     );
 
     if (initialTransaction.instructions.length > 0) {
@@ -122,29 +136,40 @@ export async function handleAddLiquidityRequest(
 
     const maxLiquidityDistributions = await Promise.all(
       maxPositionList.map(async (item) => {
-        const { range: relativeBinRange, binLower, binUpper } = getBinRange(item, activeBin);
+        const {
+          range: relativeBinRange,
+          binLower,
+          binUpper,
+        } = getBinRange(item, activeBin);
         const currentPosition = positions.find(findPosition(item, activeBin));
 
-        if (!relativeBinRange || binLower === undefined || binUpper === undefined) {
-          throw new Error(`Invalid bin range for position: ${JSON.stringify(item)}`);
+        if (
+          !relativeBinRange ||
+          binLower === undefined ||
+          binUpper === undefined
+        ) {
+          throw new Error(
+            `Invalid bin range for position: ${JSON.stringify(item)}`,
+          );
         }
 
         const rangeLower = relativeBinRange[0]!;
         const rangeUpper = relativeBinRange[1]!;
         const liquidityDistribution = maxLiqDistribution.filter(
           (li) =>
-            li.relativeBinId >= rangeLower &&
-            li.relativeBinId <= rangeUpper
+            li.relativeBinId >= rangeLower && li.relativeBinId <= rangeUpper,
         );
 
         const binArray = binArrayList.find(
           (ba) =>
             ba.binArrayLowerIndex * 256 <= binLower &&
-            (ba.binArrayUpperIndex + 1) * 256 > binUpper
+            (ba.binArrayUpperIndex + 1) * 256 > binUpper,
         );
-        
+
         if (!binArray) {
-          throw new Error(`No bin array found for range [${binLower}, ${binUpper}]`);
+          throw new Error(
+            `No bin array found for range [${binLower}, ${binUpper}]`,
+          );
         }
 
         const binArrayLower = await liquidityBookServices.getBinArray({
@@ -193,17 +218,29 @@ export async function handleAddLiquidityRequest(
           binArrayUpper: binArrayUpper.toString(),
           needsPositionCreation: false,
         };
-      })
+      }),
     );
 
     await Promise.all(
       maxLiquidityDistributions.map(async (item) => {
-        const { binArrayLower, binArrayUpper, liquidityDistribution, positionMint, needsPositionCreation } = item;
+        const {
+          binArrayLower,
+          binArrayUpper,
+          liquidityDistribution,
+          positionMint,
+          needsPositionCreation,
+        } = item;
         const addLiquidityTx = new Transaction();
 
         await liquidityBookServices.addLiquidityIntoPosition({
-          amountX: humanToBN(baseAmount.toString(), metadata.extra.tokenBaseDecimal),
-          amountY: humanToBN(quoteAmount.toString(), metadata.extra.tokenQuoteDecimal),
+          amountX: humanToBN(
+            baseAmount.toString(),
+            metadata.extra.tokenBaseDecimal,
+          ),
+          amountY: humanToBN(
+            quoteAmount.toString(),
+            metadata.extra.tokenQuoteDecimal,
+          ),
           binArrayLower: new PublicKey(binArrayLower),
           binArrayUpper: new PublicKey(binArrayUpper),
           liquidityDistribution,
@@ -216,68 +253,83 @@ export async function handleAddLiquidityRequest(
         addLiquidityTx.recentBlockhash = currentBlockhash;
         addLiquidityTx.feePayer = userPubKey;
         addLiquidityTxs.push(addLiquidityTx);
-      })
+      }),
     );
 
-    // Serialize all transaction types
     const serializedInitialTxs = allTxs.map((tx) =>
-      tx.serialize({ requireAllSignatures: false, verifySignatures: false })
+      tx.serialize({ requireAllSignatures: false, verifySignatures: false }),
     );
     const serializedCreatePositionTxs = createPositionTxs.map((tx) =>
-      tx.serialize({ requireAllSignatures: false, verifySignatures: false })
+      tx.serialize({ requireAllSignatures: false, verifySignatures: false }),
     );
     const serializedAddLiquidityTxs = addLiquidityTxs.map((tx) =>
-      tx.serialize({ requireAllSignatures: false, verifySignatures: false })
+      tx.serialize({ requireAllSignatures: false, verifySignatures: false }),
     );
 
-    const base64InitialTxs = serializedInitialTxs.map((s) => Buffer.from(s).toString("base64"));
-    const base64CreatePositionTxs = serializedCreatePositionTxs.map((s) => Buffer.from(s).toString("base64"));
-    const base64AddLiquidityTxs = serializedAddLiquidityTxs.map((s) => Buffer.from(s).toString("base64"));
+    const base64InitialTxs = serializedInitialTxs.map((s) =>
+      Buffer.from(s).toString('base64'),
+    );
+    const base64CreatePositionTxs = serializedCreatePositionTxs.map((s) =>
+      Buffer.from(s).toString('base64'),
+    );
+    const base64AddLiquidityTxs = serializedAddLiquidityTxs.map((s) =>
+      Buffer.from(s).toString('base64'),
+    );
 
-    const userId = ctx.from?.id.toString() || "";
-    const chatId = ctx.chat?.id.toString() || "";
-    const frontendUrl = "http://localhost:3001";
-    
-    // Determine which transaction to send first
-    let firstTx = "";
-    let txType = "";
-    
+    const userId = ctx.from?.id.toString() || '';
+    const chatId = ctx.chat?.id.toString() || '';
+    const frontendUrl = process.env.frontendUrl;
+
+    let firstTx = '';
+    let txType = '';
+
     if (base64InitialTxs.length > 0) {
-      firstTx = base64InitialTxs[0];
-      txType = "initial";
+      firstTx = base64InitialTxs[0]!;
+      txType = 'initial';
     } else if (base64CreatePositionTxs.length > 0) {
-      firstTx = base64CreatePositionTxs[0];
-      txType = "createPosition";
+      firstTx = base64CreatePositionTxs[0]!;
+      txType = 'createPosition';
     } else if (base64AddLiquidityTxs.length > 0) {
-      firstTx = base64AddLiquidityTxs[0];
-      txType = "addLiquidity";
+      firstTx = base64AddLiquidityTxs[0]!;
+      txType = 'addLiquidity';
     } else {
-      throw new Error("No transactions were generated");
+      throw new Error('No transactions were generated');
     }
-    
+
     const txParams = new URLSearchParams({
       tx: firstTx,
       pool: poolAddress,
       userId,
       chatId,
       txType,
-      totalTxs: (base64InitialTxs.length + base64CreatePositionTxs.length + base64AddLiquidityTxs.length).toString(),
+      totalTxs: (
+        base64InitialTxs.length +
+        base64CreatePositionTxs.length +
+        base64AddLiquidityTxs.length
+      ).toString(),
     });
     const txUrl = `${frontendUrl}/?${txParams.toString()}`;
 
     const message =
-      `✅ **Add Liquidity Transaction Built**\n\n` +
+      `**Add Liquidity Transaction Built**\n\n` +
       `**Pool:** \`${poolAddress.slice(0, 8)}...${poolAddress.slice(-8)}\`\n` +
       `**Wallet:** \`${userPubKeyStr.slice(0, 8)}...${userPubKeyStr.slice(-8)}\`\n\n` +
       `**Amounts:** ${baseAmount} base + ${quoteAmount} quote\n` +
       `**Range:** [${binRangeLower}, ${binRangeUpper}] (Active: ${activeBin})\n` +
-      `**Transactions:** ${allTxs.length} tx${allTxs.length > 1 ? 's' : ''} ready\n\n` +
-      `**Transaction URL:**\n\`${txUrl}\``;
+      `**Transactions:** ${allTxs.length} tx${allTxs.length > 1 ? 's' : ''} ready\n\n`;
 
     await ctx.reply(message, {
-      parse_mode: "Markdown",
+      parse_mode: 'Markdown',
       reply_markup: {
-        inline_keyboard: [[{ text: "🔙 Back to My Pools", callback_data: "mypools:refresh" }]],
+        inline_keyboard: [
+          [
+            {
+              text: 'Pay for Tranction',
+              url: txUrl,
+            },
+          ],
+          [{ text: 'Back to My Pools', callback_data: 'mypools:refresh' }],
+        ],
       },
     });
 
@@ -287,12 +339,12 @@ export async function handleAddLiquidityRequest(
       userId,
       chatId,
       timestamp: Date.now(),
-      type: "add_liquidity",
+      type: 'add_liquidity',
     };
   } catch (err) {
-    console.error("Add liquidity error:", err);
+    console.error('Add liquidity error:', err);
     await ctx.reply(
-      `❌ Error building add liquidity transaction: ${String((err as Error)?.message ?? err)}`
+      `Error building add liquidity transaction: ${String((err as Error)?.message ?? err)}`,
     );
   }
 }
@@ -300,12 +352,12 @@ export async function handleAddLiquidityRequest(
 function createUniformDistribution(binRange: [number, number]) {
   const distribution = [];
   const totalBins = binRange[1] - binRange[0] + 1;
-  const distributionPerBin = 100 / totalBins; // equal %
+  const distributionPerBin = 100 / totalBins;
   for (let i = binRange[0]; i <= binRange[1]; i++) {
-    distribution.push({ 
-      relativeBinId: i, 
+    distribution.push({
+      relativeBinId: i,
       distributionX: distributionPerBin,
-      distributionY: distributionPerBin
+      distributionY: distributionPerBin,
     });
   }
   return distribution;

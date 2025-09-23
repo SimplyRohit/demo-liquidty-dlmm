@@ -38,6 +38,10 @@ export function createBot() {
       command: "mypools",
       description: "/mypools <poolAddress> <userPublicKey> - View Your Pools",
     },
+    {
+      command: "binsteps",
+      description: "View available bin steps for creating pools",
+    }
   ]);
 
   bot.catch((err) => {

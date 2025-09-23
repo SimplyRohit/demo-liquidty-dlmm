@@ -1,21 +1,15 @@
-import type { LiquidityBookServices } from "@saros-finance/dlmm-sdk";
-import { PoolService } from "../services/PoolService";
-import { MessageFormatter } from "../services/MessageFormatter";
-import { RateLimitService } from "../services/RateLimitService";
-import type { MyContext } from "@/types";
+import { MyContext } from '@/types';
+import { formatPoolSummary } from '../services/MessageFormatter';
+import { createRateLimiter } from '../services/RateLimitService';
+import { LiquidityBookServices } from '@saros-finance/dlmm-sdk';
 
-export class PoolController {
-  private poolService: PoolService;
-  private rateLimitService: RateLimitService;
+export function createPoolFunctions(
+  liquidityBookServices: LiquidityBookServices,
+) {
+  const rateLimiter = createRateLimiter();
 
-  constructor(private liquidityBookServices: LiquidityBookServices) {
-    this.poolService = new PoolService(liquidityBookServices);
-    this.rateLimitService = new RateLimitService();
-  }
-
-  async showPoolList(ctx: MyContext, page: number = 1) {
+  async function showPoolList(ctx: MyContext, page: number = 1) {
     if (!ctx.session) ctx.session = {};
-
     const markets = ctx.session.markets ?? [];
     const pageSize = 5;
     const totalPages = Math.max(1, Math.ceil(markets.length / pageSize));
@@ -26,168 +20,147 @@ export class PoolController {
 
     const start = (page - 1) * pageSize;
     const items = markets.slice(start, start + pageSize);
+    if (items.length === 0)
+      return ctx.reply('<i>No pools found on this page.</i>', {
+        parse_mode: 'HTML',
+      });
 
-    if (items.length === 0) {
-      await ctx.reply("❌ No pools found on this page.");
-      return;
-    }
-
-    await this.updateMessage(
+    await updateMessage(
       ctx,
-      `🔄 Loading pool data (Page ${page}/${totalPages})...`
+      `<i>Loading pool data (Page ${page}/${totalPages})...</i>`,
+      { parse_mode: 'HTML' },
     );
 
     const results = await Promise.all(
-      items.map(async (address: string, index: number) => {
+      items.map(async (address, index) => {
         try {
           const poolData =
-            await this.liquidityBookServices.fetchPoolMetadata(address);
-          const poolNumber = start + index + 1;
-          return MessageFormatter.formatPoolSummary(poolData, poolNumber);
-        } catch (err) {
-          const poolNumber = start + index + 1;
-          return `${poolNumber}. ⚠️ *Error loading pool*\n🏦 \`${address.slice(0, 8)}...${address.slice(-4)}\``;
+            await liquidityBookServices.fetchPoolMetadata(address);
+          return formatPoolSummary(poolData, start + index + 1);
+        } catch {
+          return `<i>${start + index + 1}.Error loading pool\n ${address}`;
         }
-      })
+      }),
     );
+
+    const keyboard = createPoolListKeyboard(items, page, totalPages, start);
     const text =
-      `Saros Pools (Page ${page}/${totalPages})\n\n` +
-      results.join("\n\n") +
-      `\n\nTotal Pools: ${markets.length}`;
-
-    const keyboard = this.createPoolListKeyboard(
-      items,
-      page,
-      totalPages,
-      start
-    );
-
-    await this.updateMessage(ctx, text, {
-      parse_mode: "Markdown",
+      `<i>Saros Pools (Page ${page}/${totalPages})\n\n` +
+      `${results.join('\n\n')}\n` +
+      `Total Pools: ${markets.length}</i>`;
+    await updateMessage(ctx, text, {
+      parse_mode: 'HTML',
       reply_markup: { inline_keyboard: keyboard },
     });
   }
 
-  async showPoolDetails(
+  async function showPoolDetails(
     ctx: MyContext,
     poolAddress: string,
-    source: "list" | "direct",
-    poolIndex?: number
+    source: 'list' | 'direct',
+    poolIndex?: number,
   ) {
     try {
-      await this.updateMessage(ctx, "🔄 Loading pool details...");
-
+      await updateMessage(ctx, '<i>Loading pool details...</i>', {
+        parse_mode: 'HTML',
+      });
       const poolData =
-        await this.liquidityBookServices.fetchPoolMetadata(poolAddress);
+        await liquidityBookServices.fetchPoolMetadata(poolAddress);
+
       if (!ctx.session) ctx.session = {};
       ctx.session.selectedPool = poolAddress;
       ctx.session.selectedPoolIndex = poolIndex ?? -1;
 
-      const detailText = MessageFormatter.formatPoolSummary(poolData);
-      const keyboard = this.createPoolDetailKeyboard(source, poolIndex);
+      const text = formatPoolSummary(poolData);
+      const keyboard = createPoolDetailKeyboard(source, poolIndex);
 
-      await this.updateMessage(ctx, `${detailText}`, {
-        parse_mode: "Markdown",
+      await updateMessage(ctx, `<i>${text}</i>`, {
+        parse_mode: 'HTML',
         reply_markup: { inline_keyboard: keyboard },
       });
     } catch (err) {
-      console.error("Error showing pool details:", err);
+      console.error('Error showing pool details:', err);
       if (
-        //@ts-ignore ignoree krde bhaai
-        err.message?.includes("Pool not found") ||
-        //@ts-ignore ignoree krde bhaai
-        err.message?.includes("Invalid pool")
+        // @ts-ignore krde igore
+        err.message?.includes('Pool not found') ||
+        // @ts-ignore krde igore
+
+        err.message?.includes('Invalid pool')
       ) {
         await ctx.reply(
-          "❌ Pool not found or invalid pool address.\n\n💡 Use `/pools` to see all available pools."
+          '<i>Pool not found or invalid pool address.\n\n Use /pools to see all available pools.</i>',
         );
       } else {
         await ctx.reply(
-          `❌ Error loading pool details: ${String((err as Error)?.message ?? err)}`
+          // @ts-ignore krde igore
+          ` <i>Error loading pool details: ${String(err.message ?? err)}</i>`,
+          {
+            parse_mode: 'HTML',
+          },
         );
       }
     }
   }
 
-  private createPoolListKeyboard(
+  function checkRateLimit(userId: string): boolean {
+    return rateLimiter.checkRateLimit(userId);
+  }
+
+  function createPoolListKeyboard(
     items: string[],
     page: number,
     totalPages: number,
-    start: number
+    start: number,
   ) {
-    const selectionButtons = [];
-    const navigationButtons = [];
+    const selectionButtons = items.map((_, i) => ({
+      text: `${start + i + 1}`,
+      callback_data: `market:${start + i}`,
+    }));
 
-    for (let i = 0; i < items.length; i++) {
-      const poolNumber = start + i + 1;
-      const globalIndex = start + i;
-      selectionButtons.push({
-        text: `${poolNumber}`,
-        callback_data: `market:${globalIndex}`,
-      });
-    }
-
-    if (page > 1) {
+    const navigationButtons: any[] = [];
+    if (page > 1)
       navigationButtons.push({
-        text: "Prev",
+        text: 'Prev',
         callback_data: `pool:${page - 1}`,
       });
-    }
-    if (page < totalPages) {
+    if (page < totalPages)
       navigationButtons.push({
-        text: "Next",
+        text: 'Next',
         callback_data: `pool:${page + 1}`,
       });
-    }
-    navigationButtons.push({
-      text: "Refresh",
-      callback_data: "pool:refresh",
-    });
+    navigationButtons.push({ text: 'Refresh', callback_data: 'pool:refresh' });
 
-    const keyboard = [];
-    if (selectionButtons.length > 0) {
-      for (let i = 0; i < selectionButtons.length; i += 5) {
-        keyboard.push(selectionButtons.slice(i, i + 5));
-      }
-    }
-    if (navigationButtons.length > 0) {
-      keyboard.push(navigationButtons);
-    }
-
+    const keyboard: any[] = [];
+    for (let i = 0; i < selectionButtons.length; i += 5)
+      keyboard.push(selectionButtons.slice(i, i + 5));
+    if (navigationButtons.length > 0) keyboard.push(navigationButtons);
     return keyboard;
   }
 
-  private createPoolDetailKeyboard(
-    source: "list" | "direct",
-    poolIndex?: number
+  function createPoolDetailKeyboard(
+    source: 'list' | 'direct',
+    poolIndex?: number,
   ) {
     const baseButtons = [
       [
-        {
-          text: "Get Quote",
-          callback_data: `action:quote:${poolIndex ?? -1}`,
-        },
-        {
-          text: "Build Swap",
-          callback_data: `action:swap:${poolIndex ?? -1}`,
-        },
+        { text: 'Get Quote', callback_data: `action:quote:${poolIndex ?? -1}` },
+        { text: 'Build Swap', callback_data: `action:swap:${poolIndex ?? -1}` },
       ],
     ];
 
-    if (source === "list") {
+    if (source === 'list')
       baseButtons.push([
-        { text: "Back to Pools", callback_data: "back_to_pools" },
+        { text: 'Back to Pools', callback_data: 'back_to_pools' },
       ]);
-    } else {
+    else
       baseButtons.push([
-        { text: "View All Pools", callback_data: "view_all_pools" },
+        { text: 'View All Pools', callback_data: 'view_all_pools' },
       ]);
-    }
 
     return baseButtons;
   }
 
-  private async updateMessage(ctx: MyContext, text: string, extra?: any) {
+  async function updateMessage(ctx: MyContext, text: string, extra?: any) {
     try {
       await ctx.editMessageText(text, extra);
     } catch {
@@ -195,7 +168,5 @@ export class PoolController {
     }
   }
 
-  checkRateLimit(userId: string): boolean {
-    return this.rateLimitService.checkRateLimit(userId);
-  }
+  return { showPoolList, showPoolDetails, checkRateLimit };
 }
