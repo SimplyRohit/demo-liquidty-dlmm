@@ -33,4 +33,5 @@ export const TxResultSchema = z.object({
   poolAddress: z.string().optional(),
   userId: z.string().optional(),
   chatId: z.string().optional(),
+  transactionType: z.string().optional(),
 });

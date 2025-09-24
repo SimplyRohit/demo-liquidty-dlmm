@@ -1,6 +1,6 @@
 import { createRoot } from 'react-dom/client';
 import { useEffect, useState, useCallback } from 'react';
-import { Transaction, PublicKey, Keypair } from '@solana/web3.js';
+import { Transaction, Keypair } from '@solana/web3.js';
 import { Buffer } from 'buffer';
 import bs58 from 'bs58';
 import {
@@ -18,34 +18,23 @@ interface TransactionBundle {
   transaction: string;
   type: 'initial' | 'createPosition' | 'addLiquidity';
   requiredSigners?: string[];
+  generatedKeypairs?: {
+    [key: string]: string;
+  };
 }
 
 interface TransactionData {
   transactions: TransactionBundle[];
-  generatedKeypairs: { [key: string]: string };
+  totalTransactions: number;
   poolAddress: string;
   userId: string;
   chatId: string;
-  metadata: {
-    baseAmount: number;
-    quoteAmount: number;
-    binRange: [number, number];
-    activeBin: number;
-    totalTransactions: number;
-    hasExistingPosition: boolean;
-  };
 }
 
 function TransactionSigner() {
   const { connection } = useConnection();
-  const {
-    connected,
-    disconnect,
-    publicKey,
-    connecting,
-    signTransaction,
-    signAllTransactions,
-  } = useWallet();
+  const { connected, disconnect, publicKey, connecting, signTransaction } =
+    useWallet();
   const { setVisible } = useWalletModal();
 
   const [transactionData, setTransactionData] =
@@ -63,12 +52,6 @@ function TransactionSigner() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-
-    const rawTx = params.get('tx');
-    if (rawTx) {
-      handleSingleTransaction(rawTx, params);
-      return;
-    }
 
     const encodedData = params.get('data');
     if (encodedData) {
@@ -94,51 +77,6 @@ function TransactionSigner() {
     }
   }, []);
 
-  const handleSingleTransaction = (rawTx: string, params: URLSearchParams) => {
-    const pool = params.get('pool') || '';
-    const user = params.get('userId') || '';
-    const chat = params.get('chatId') || '';
-
-    try {
-      let cleanTx = decodeURIComponent(rawTx.trim()).replace(/ /g, '+');
-      const txBytes = Buffer.from(cleanTx, 'base64');
-      const tx = Transaction.from(txBytes);
-
-      setTransactionData({
-        transactions: [
-          {
-            transaction: cleanTx,
-            type: 'addLiquidity',
-          },
-        ],
-        generatedKeypairs: {},
-        poolAddress: pool,
-        userId: user,
-        chatId: chat,
-        metadata: {
-          baseAmount: 0,
-          quoteAmount: 0,
-          binRange: [0, 0],
-          activeBin: 0,
-          totalTransactions: 1,
-          hasExistingPosition: true,
-        },
-      });
-
-      setStatus('Single transaction loaded. Ready to sign.');
-    } catch (e) {
-      console.error('Error parsing transaction:', e);
-      setStatus('Failed to parse transaction');
-      sendResultToBot({
-        status: false,
-        errorMessage: 'Failed to parse transaction',
-        poolAddress: pool,
-        userId: user,
-        chatId: chat,
-      });
-    }
-  };
-
   const sendResultToBot = async (result: {
     status: boolean;
     txId?: string;
@@ -150,11 +88,27 @@ function TransactionSigner() {
     transactionType?: string;
   }) => {
     try {
+      let simplifiedError = 'Transaction failed';
+
+      if (result.errorMessage) {
+        const lines = result.errorMessage.split('\n');
+        const meaningfulLine = lines.find((line) =>
+          /already in use|insufficient funds|node is behind|failed/i.test(line),
+        );
+
+        if (meaningfulLine) {
+          simplifiedError = meaningfulLine
+            .replace(/program log:\s*/i, '')
+            .trim();
+        }
+      }
+
       const response = await fetch('/webhook/transaction-result', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(result),
+        body: JSON.stringify({ ...result, errorMessage: simplifiedError }),
       });
+
       if (!response.ok) {
         console.error('Failed to notify bot:', await response.text());
       }
@@ -169,7 +123,6 @@ function TransactionSigner() {
       return;
     }
 
-    const results: string[] = [];
     let currentBlockhash = await connection.getLatestBlockhash();
 
     try {
@@ -182,70 +135,101 @@ function TransactionSigner() {
         );
 
         const tx = Transaction.from(Buffer.from(bundle!.transaction, 'base64'));
-
         tx.recentBlockhash = currentBlockhash.blockhash;
         tx.feePayer = tx.feePayer || publicKey;
 
-        if (
-          bundle!.type === 'createPosition' &&
-          bundle!.requiredSigners &&
-          bundle!.requiredSigners.length > 0
-        ) {
-          setStatus(`Signing position creation transaction ${i + 1}...`);
+        try {
+          if (
+            bundle!.type === 'createPosition' &&
+            bundle!.requiredSigners &&
+            bundle!.requiredSigners.length > 0
+          ) {
+            setStatus(`Signing position creation transaction ${i + 1}...`);
 
-          const signedTx = await signTransaction(tx);
+            const signedTx = await signTransaction(tx);
+            for (const signerPrivateKey of bundle!.requiredSigners) {
+              const positionKeypair = Keypair.fromSecretKey(
+                bs58.decode(signerPrivateKey),
+              );
+              signedTx.partialSign(positionKeypair);
+            }
 
-          for (const signerPrivateKey of bundle!.requiredSigners) {
-            const positionKeypair = Keypair.fromSecretKey(
-              bs58.decode(signerPrivateKey),
+            setStatus(`Sending position creation transaction ${i + 1}...`);
+            const txHash = await connection.sendRawTransaction(
+              signedTx.serialize(),
+              {
+                skipPreflight: false,
+                preflightCommitment: 'confirmed',
+              },
             );
-            signedTx.partialSign(positionKeypair);
+
+            setStatus(`Confirming transaction ${i + 1}...`);
+            await connection.confirmTransaction(
+              {
+                signature: txHash,
+                blockhash: currentBlockhash.blockhash,
+                lastValidBlockHeight: currentBlockhash.lastValidBlockHeight,
+              },
+              'confirmed',
+            );
+
+            await sendResultToBot({
+              status: true,
+              txId: txHash,
+              poolAddress: transactionData.poolAddress,
+              userId: transactionData.userId,
+              chatId: transactionData.chatId,
+              transactionType: bundle!.type,
+            });
+          } else {
+            setStatus(`Signing transaction ${i + 1}...`);
+            const signedTx = await signTransaction(tx);
+
+            setStatus(`Sending transaction ${i + 1}...`);
+            const txHash = await connection.sendRawTransaction(
+              signedTx.serialize(),
+              {
+                skipPreflight: false,
+                preflightCommitment: 'confirmed',
+              },
+            );
+
+            setStatus(`Confirming transaction ${i + 1}...`);
+            await connection.confirmTransaction(
+              {
+                signature: txHash,
+                blockhash: currentBlockhash.blockhash,
+                lastValidBlockHeight: currentBlockhash.lastValidBlockHeight,
+              },
+              'confirmed',
+            );
+
+            await sendResultToBot({
+              status: true,
+              txId: txHash,
+              poolAddress: transactionData.poolAddress,
+              userId: transactionData.userId,
+              chatId: transactionData.chatId,
+              transactionType: bundle!.type,
+            });
           }
+        } catch (err) {
+          console.error('Transaction failed:', err);
+          const errorMessage =
+            (err as Error)?.message || 'Transaction processing failed';
 
-          setStatus(`Sending position creation transaction ${i + 1}...`);
-          const txHash = await connection.sendRawTransaction(
-            signedTx.serialize(),
-            {
-              skipPreflight: false,
-              preflightCommitment: 'confirmed',
-            },
-          );
+          setStatus(`Transaction ${i + 1} failed: ${errorMessage}`);
 
-          setStatus(`Confirming transaction ${i + 1}...`);
-          await connection.confirmTransaction(
-            {
-              signature: txHash,
-              blockhash: currentBlockhash.blockhash,
-              lastValidBlockHeight: currentBlockhash.lastValidBlockHeight,
-            },
-            'confirmed',
-          );
+          await sendResultToBot({
+            status: false,
+            errorMessage,
+            poolAddress: transactionData.poolAddress,
+            userId: transactionData.userId,
+            chatId: transactionData.chatId,
+            transactionType: bundle?.type,
+          });
 
-          results.push(txHash);
-        } else {
-          setStatus(`Signing transaction ${i + 1}...`);
-          const signedTx = await signTransaction(tx);
-
-          setStatus(`Sending transaction ${i + 1}...`);
-          const txHash = await connection.sendRawTransaction(
-            signedTx.serialize(),
-            {
-              skipPreflight: false,
-              preflightCommitment: 'confirmed',
-            },
-          );
-
-          setStatus(`Confirming transaction ${i + 1}...`);
-          await connection.confirmTransaction(
-            {
-              signature: txHash,
-              blockhash: currentBlockhash.blockhash,
-              lastValidBlockHeight: currentBlockhash.lastValidBlockHeight,
-            },
-            'confirmed',
-          );
-
-          results.push(txHash);
+          break;
         }
 
         if (i < transactionData.transactions.length - 1) {
@@ -253,72 +237,41 @@ function TransactionSigner() {
         }
       }
 
-      setStatus(`All ${results.length} transactions completed successfully!`);
-
-      await sendResultToBot({
-        status: true,
-        txId: results[results.length - 1],
-        allTransactionHashes: results,
-        poolAddress: transactionData.poolAddress,
-        userId: transactionData.userId,
-        chatId: transactionData.chatId,
-        transactionType: 'add_liquidity',
-      });
+      setStatus(`Transaction processing complete.`);
     } catch (err) {
-      console.error('Transaction failed:', err);
-      const errorMessage =
-        (err as Error)?.message || 'Transaction processing failed';
-      setStatus(`Transaction ${currentTxIndex} failed: ${errorMessage}`);
-
-      await sendResultToBot({
-        status: false,
-        errorMessage,
-        poolAddress: transactionData.poolAddress,
-        userId: transactionData.userId,
-        chatId: transactionData.chatId,
-        transactionType: 'add_liquidity',
-      });
+      console.error('Unexpected error:', err);
+      setStatus('Unexpected processing error');
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#212121] text-white flex flex-col justify-center items-center p-6 gap-6">
-      <div className="bg-white/10 rounded-lg p-6 w-full max-w-md text-center">
-        <h1 className="text-3xl font-bold mb-4">
+    <div className="w-screen min-h-screen overflow-hidden text-center text-white flex flex-col items-center justify-center bg-[#1F1F1F] p-4">
+      <div className="w-full max-w-md break-words">
+        <h1 className="text-2xl md:text-3xl text-white font-bold mb-4">
           Saros DLMM Transaction Signer
         </h1>
 
         {transactionData && (
           <>
-            <p className="mb-2">
-              <span className="font-semibold text-gray-300">Pool:</span>{' '}
-              {transactionData.poolAddress}
+            <p className="my-1 text-sm md:text-base">
+              <span className="font-mono text-white">Pool:</span>{' '}
+              <span className="break-all">{transactionData.poolAddress}</span>
             </p>
-            {transactionData.metadata.hasExistingPosition ? (
-              <p className="mb-2 text-green-400">Adding to existing position</p>
-            ) : (
-              <p className="mb-2 text-blue-400">Creating new position</p>
-            )}
-            <p className="mb-2">
-              <span className="font-semibold text-gray-300">Transactions:</span>{' '}
+            <p className="my-1 text-sm md:text-base">
+              <span className="font-mono text-white">Transactions:</span>{' '}
               {transactionData.transactions.length}
-            </p>
-            <p className="mb-2">
-              <span className="font-semibold text-gray-300">Range:</span> [
-              {transactionData.metadata.binRange[0]},{' '}
-              {transactionData.metadata.binRange[1]}]
             </p>
           </>
         )}
 
-        <p className="mt-4">
-          <span className="font-semibold text-gray-300">Status:</span> {status}
+        <p className="my-1 text-sm md:text-base">
+          <span className="font-mono text-white">Status:</span> {status}
         </p>
       </div>
 
-      <div className="flex flex-col gap-4 items-center">
+      <div className="flex flex-col gap-4 mt-5 items-center w-full max-w-xs">
         <button
-          className={`bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded font-semibold ${connecting ? 'opacity-50' : ''}`}
+          className={`bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded font-semibold w-full ${connecting ? 'opacity-50' : ''}`}
           onClick={handleClick}
           disabled={connecting}
         >
@@ -332,9 +285,9 @@ function TransactionSigner() {
         {publicKey && transactionData && (
           <button
             onClick={processTransactions}
-            className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors"
+            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded font-mono w-full transition-colors"
           >
-            Sign & Execute {transactionData.transactions.length} Transaction
+            Sign {transactionData.transactions.length} Transaction
             {transactionData.transactions.length > 1 ? 's' : ''}
           </button>
         )}

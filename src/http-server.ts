@@ -14,24 +14,29 @@ export function createServer() {
         POST: async (req: Request) => {
           try {
             const body = TxResultSchema.parse(await req.json());
-            const { status, txId, errorMessage, poolAddress, userId, chatId } =
-              body;
+            const {
+              status,
+              txId,
+              errorMessage,
+              poolAddress,
+              userId,
+              chatId,
+              transactionType,
+            } = body;
 
             if (chatId) {
               let message = '';
 
               if (status === true && txId) {
                 message =
-                  `<i>Transaction Successful!\n\n` +
+                  `<i>Transaction Successful for ${transactionType}\n\n` +
                   `Pool: <pre>${poolAddress}</pre>\n` +
-                  `Transaction ID: <pre>${txId}</pre>\n\n` +
-                  `Your swap has been executed successfully!</i>`;
+                  `Transaction ID: <pre>${txId}</pre></i>`;
               } else {
                 message =
-                  `<i>Transaction Successful!\n\n` +
+                  `<i>Transaction failed for ${transactionType}\n\n` +
                   `Pool: <pre>${poolAddress}</pre>\n` +
-                  `Error : ${errorMessage || 'Unknown error occurred'}\n\n` +
-                  `Please check your wallet balance and try again.</i>`;
+                  `Error : ${errorMessage || 'Unknown error occurred'}</i>`;
               }
 
               await bot.telegram.sendMessage(chatId, message, {

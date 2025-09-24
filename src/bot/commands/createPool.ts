@@ -91,7 +91,7 @@ export async function handleCreatePool(
     const { blockhash } = await connection.getLatestBlockhash({
       commitment: 'confirmed',
     });
-    const { tx } = await liquidityBookServices.createPairWithConfig({
+    const { tx, pair } = await liquidityBookServices.createPairWithConfig({
       tokenBase: { mintAddress: tokenXMint, decimal: tokenXDecimals },
       tokenQuote: { mintAddress: tokenYMint, decimal: tokenYDecimals },
       ratePrice,
@@ -110,13 +110,22 @@ export async function handleCreatePool(
     const userId = ctx.from?.id.toString() || '';
     const chatId = ctx.chat?.id.toString() || '';
     const frontendUrl = process.env.frontendUrl!;
-    const txParams = new URLSearchParams({
-      tx: base64Tx,
-      pool: payerKeyStr,
+    const transactionData = {
+      transactions: [
+        {
+          transaction: base64Tx,
+          type: 'createpool',
+        },
+      ],
+      totalTransactions: 1,
+      poolAddress: pair,
       userId: userId,
       chatId: chatId,
-    });
-    const txUrl = `${frontendUrl}/?${txParams.toString()}`;
+    };
+    const encodedData = Buffer.from(JSON.stringify(transactionData)).toString(
+      'base64',
+    );
+    const txUrl = `${frontendUrl}/?data=${encodedData}`;
 
     await ctx.reply(`<i>Pool transaction built! SuccessFully</i>`, {
       parse_mode: 'HTML',

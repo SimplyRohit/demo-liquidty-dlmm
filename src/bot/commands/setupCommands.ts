@@ -15,6 +15,7 @@ import { showMyPoolsData } from './showMyPoolsData';
 import { startAddLiquidityProcess } from './startAddLiquidityProcess';
 import { startRemoveLiquidityProcess } from './startRemoveLiquidityProcess';
 import { createPoolFunctions } from '../controllers/PoolController';
+import { handleCreatePool } from './createPool';
 
 export function setupCommands(
   bot: Telegraf<MyContext>,
@@ -23,9 +24,13 @@ export function setupCommands(
   const poolFunctions = createPoolFunctions(liquidityBookServices);
 
   bot.start(async (ctx) => {
-    await ctx.reply(`<i>Welcome to the Saros DLMM Bot!</i>`, {
+    await ctx.reply(`<i>Welcome to the Saros DLMM Bot! (Devnet only)</i>`, {
       parse_mode: 'HTML',
     });
+  });
+
+  bot.command('createpool', async (ctx) => {
+    await handleCreatePool(ctx, liquidityBookServices);
   });
 
   bot.command('pools', async (ctx) => {

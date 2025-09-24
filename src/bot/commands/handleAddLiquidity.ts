@@ -16,6 +16,9 @@ interface TransactionBundle {
   transaction: string;
   type: 'initial' | 'createPosition' | 'addLiquidity';
   requiredSigners?: string[];
+  generatedKeypairs?: {
+    [key: string]: string;
+  };
 }
 
 export async function handleAddLiquidityRequest(
@@ -94,11 +97,9 @@ export async function handleAddLiquidityRequest(
     const activeBin = pairInfo.activeId;
 
     const connection = liquidityBookServices.connection;
-    const { blockhash, lastValidBlockHeight } =
-      await connection.getLatestBlockhash();
+    const { blockhash } = await connection.getLatestBlockhash();
 
     let currentBlockhash = blockhash;
-    let currentLastValidBlockHeight = lastValidBlockHeight;
 
     const maxPositionList = getMaxPosition(
       [binRange[0], binRange[1]],
@@ -185,7 +186,6 @@ export async function handleAddLiquidityRequest(
         const rangeLower = relativeBinRange[0]!;
         const rangeUpper = relativeBinRange[1]!;
 
-        // Fix: Use the same approach as the working example
         const findStartIndex = maxLiqDistribution.findIndex(
           (item) => item.relativeBinId === rangeLower,
         );
@@ -230,7 +230,6 @@ export async function handleAddLiquidityRequest(
           const positionMint = Keypair.generate();
           const positionPrivateKey = bs58.encode(positionMint.secretKey);
 
-          // Store generated keypair
           generatedKeypairs[positionMint.publicKey.toString()] =
             positionPrivateKey;
 
@@ -261,6 +260,7 @@ export async function handleAddLiquidityRequest(
             ),
             type: 'createPosition',
             requiredSigners: [positionPrivateKey],
+            generatedKeypairs,
           });
 
           return {
@@ -332,18 +332,10 @@ export async function handleAddLiquidityRequest(
 
     const transactionData = {
       transactions: transactionBundles,
-      generatedKeypairs,
+      totalTransactions: transactionBundles.length,
       poolAddress,
       userId,
       chatId,
-      metadata: {
-        baseAmount,
-        quoteAmount,
-        binRange,
-        activeBin,
-        totalTransactions: transactionBundles.length,
-        hasExistingPosition: false,
-      },
     };
 
     const encodedData = Buffer.from(JSON.stringify(transactionData)).toString(
@@ -353,8 +345,8 @@ export async function handleAddLiquidityRequest(
 
     const message =
       `<i>Add Liquidity Transaction Built</i>\n\n` +
-      `<i>Pool:</i> <code>${poolAddress.slice(0, 8)}...${poolAddress.slice(-8)}</code>\n` +
-      `<i>Wallet:</i> <code>${userPubKeyStr.slice(0, 8)}...${userPubKeyStr.slice(-8)}</code>\n\n` +
+      `<i>Pool:</i> <pre>${poolAddress}</pre>\n` +
+      `<i>Wallet:</i> <pre>${userPubKeyStr}</pre>\n\n` +
       `<i>Amounts:</i> ${baseAmount} base + ${quoteAmount} quote\n` +
       `<i>Range:</i> [${binRangeLower}, ${binRangeUpper}] (Active: ${activeBin})\n` +
       `<i>Status:</i> Creating new position and adding liquidity\n` +

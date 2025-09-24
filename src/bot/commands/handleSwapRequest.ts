@@ -125,15 +125,26 @@ export async function handleSwapRequest(
       chatId: ctx.chat?.id.toString() || '',
       timestamp: Date.now(),
     };
-
+    console.log('starting');
     const frontendUrl = process.env.frontendUrl;
-    const txParams = new URLSearchParams({
-      tx: base64Tx,
-      pool: poolAddress,
+    const transactionData = {
+      transactions: [
+        {
+          transaction: base64Tx,
+          type: 'swap',
+        },
+      ],
+      totalTransactions: 1,
+      poolAddress,
       userId: userId,
       chatId: chatId,
-    });
-    const txUrl = `${frontendUrl}/?${txParams.toString()}`;
+    };
+
+    const encodedData = Buffer.from(JSON.stringify(transactionData)).toString(
+      'base64',
+    );
+    const txUrl = `${frontendUrl}/?data=${encodedData}`;
+    console.log('ending');
 
     await ctx.reply(
       `<i>Swap Transaction Built Successfully\n\n` +

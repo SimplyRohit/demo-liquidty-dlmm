@@ -10,7 +10,7 @@ export async function handleRemoveLiquidityRequest(
   liquidityBookServices: LiquidityBookServices,
 ) {
   try {
-    // @ts-ignore krde ignore yaar
+    // @ts-ignore
     const parts = ctx.message?.text?.trim().split(/\s+/) || [];
     if (parts.length < 3) {
       await ctx.reply(
@@ -125,7 +125,7 @@ export async function handleRemoveLiquidityRequest(
     let transactionToSend: Transaction;
 
     if (txs.length > 0) {
-      // @ts-ignore lol
+      // @ts-ignore
       transactionToSend = txs[0];
     } else {
       await ctx.reply(`<i>No valid transaction to send.</i>`, {
@@ -148,13 +148,24 @@ export async function handleRemoveLiquidityRequest(
     const chatId = ctx.chat?.id.toString() || '';
 
     const frontendUrl = process.env.frontendUrl;
-    const txParams = new URLSearchParams({
-      tx: base64Tx,
-      pool: poolAddress,
-      userId,
-      chatId,
-    });
-    const txUrl = `${frontendUrl}/?${txParams.toString()}`;
+
+    const transactionData = {
+      transactions: [
+        {
+          transaction: base64Tx,
+          type: 'remove-liquidty',
+        },
+      ],
+      totalTransactions: 1,
+      poolAddress,
+      userId: userId,
+      chatId: chatId,
+    };
+
+    const encodedData = Buffer.from(JSON.stringify(transactionData)).toString(
+      'base64',
+    );
+    const txUrl = `${frontendUrl}/?data=${encodedData}`;
 
     const message =
       `<i>Remove Liquidity Transaction Built</i>\n\n` +
@@ -197,7 +208,9 @@ export async function handleRemoveLiquidityRequest(
   } catch (err) {
     console.error('Remove liquidity error:', err);
     await ctx.reply(
-      `<i>Error building remove liquidity transaction: ${String((err as Error)?.message ?? err)}</i>`,
+      `<i>Error building remove liquidity transaction: ${String(
+        (err as Error)?.message ?? err,
+      )}</i>`,
       { parse_mode: 'HTML' },
     );
   }
