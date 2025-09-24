@@ -13,9 +13,7 @@ export async function showMyPoolsData(
     if (!poolAddr || !userPubKeyStr) {
       await ctx.reply(
         '<i>Session data missing. Please use /mypools command again.</i>',
-        {
-          parse_mode: 'HTML',
-        },
+        { parse_mode: 'HTML' },
       );
       return;
     }
@@ -31,7 +29,7 @@ export async function showMyPoolsData(
       payer: userPub,
       pair,
     });
-
+    console.log(JSON.stringify(positions, null, 2));
     const pairInfo = await liquidityBookServices.getPairAccount(pair);
     const activeBin = pairInfo.activeId;
 
@@ -79,9 +77,12 @@ export async function showMyPoolsData(
       positions.forEach((position, index) => {
         const relativeLower = position.lowerBinId - activeBin;
         const relativeUpper = position.upperBinId - activeBin;
+        const isInRange =
+          activeBin >= position.lowerBinId && activeBin <= position.upperBinId;
+        const status = isInRange ? 'Active' : 'Out of Range';
 
         message +=
-          `Position ${index + 1}:\n` +
+          `Position ${index + 1}: ${status}\n` +
           `• Bin Range: [${position.lowerBinId}, ${position.upperBinId}]\n` +
           `• Relative to Active: [${relativeLower}, ${relativeUpper}]\n` +
           `• Position Mint:</i>\n<pre>${position.positionMint}</pre>\n\n<i>`;
@@ -111,9 +112,7 @@ export async function showMyPoolsData(
 
     await ctx.reply(message, {
       parse_mode: 'HTML',
-      reply_markup: {
-        inline_keyboard: keyboard,
-      },
+      reply_markup: { inline_keyboard: keyboard },
     });
   } catch (err) {
     console.error('showMyPoolsData error:', err);

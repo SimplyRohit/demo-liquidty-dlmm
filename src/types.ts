@@ -1,5 +1,5 @@
-import { Context } from "telegraf";
-import z from "zod";
+import { Context } from 'telegraf';
+import z from 'zod';
 
 export interface MySession {
   markets?: string[];
@@ -11,7 +11,8 @@ export interface MySession {
   awaitingRemoveLiquidity?: boolean;
   selectedPool?: string;
   selectedPoolIndex?: number;
-  userPublicKey?: string; 
+  userPublicKey?: string;
+  awaitingBinRange?: boolean;
   pendingTransaction?: {
     poolAddress: string;
     userId: string;

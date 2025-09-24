@@ -1,11 +1,11 @@
-import { Telegraf, session } from "telegraf";
-import { LiquidityBookServices, MODE } from "@saros-finance/dlmm-sdk";
-import { type MyContext } from "./types";
-import { setupCommands } from "./bot/commands/setupCommands";
+import { Telegraf, session } from 'telegraf';
+import { LiquidityBookServices, MODE } from '@saros-finance/dlmm-sdk';
+import { type MyContext } from './types';
+import { setupCommands } from './bot/commands/setupCommands';
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 if (!BOT_TOKEN) {
-  console.error("NO TELEGRAM_BOT_TOKEN in env");
+  console.error('NO TELEGRAM_BOT_TOKEN in env');
   process.exit(1);
 }
 
@@ -20,32 +20,34 @@ export const pendingTransactions = new Map<
 >();
 
 export function createBot() {
-  const liquidityBookServices = new LiquidityBookServices({ mode: MODE.DEVNET });
+  const liquidityBookServices = new LiquidityBookServices({
+    mode: MODE.DEVNET,
+  });
   const bot = new Telegraf<MyContext>(BOT_TOKEN!);
-  
+
   bot.use(session());
   setupCommands(bot, liquidityBookServices);
 
   bot.telegram.setMyCommands([
-    { command: "pools", description: "View all pools with pagination" },
-    { command: "pool", description: "/pool <pooladdress>" },
+    { command: 'pools', description: 'View all pools with pagination' },
+    { command: 'pool', description: '/pool <pooladdress>' },
     {
-      command: "createpool",
+      command: 'createpool',
       description:
-        "/createpool <tokenXMint> <tokenYMint> <tokenXDecimals> <tokenYDecimals> <ratePrice> [binStep] - Create new pool",
+        '/createpool <tokenXMint> <tokenYMint> <tokenXDecimals> <tokenYDecimals> <ratePrice> [binStep] - Create new pool',
     },
     {
-      command: "mypools",
-      description: "/mypools <poolAddress> <userPublicKey> - View Your Pools",
+      command: 'mypools',
+      description: '/mypools <poolAddress> <userPublicKey> - View Your Pools',
     },
     {
-      command: "binsteps",
-      description: "View available bin steps for creating pools",
-    }
+      command: 'binsteps',
+      description: 'View available bin steps for creating pools',
+    },
   ]);
 
   bot.catch((err) => {
-    console.error("Bot error:", err);
+    console.error('Bot error:', err);
   });
 
   return bot;
@@ -53,9 +55,9 @@ export function createBot() {
 
 export function startBot() {
   const bot = createBot();
-  console.log("Launching Telegram bot...");
+  console.log('Launching Telegram bot...');
   bot.launch();
-  console.log("Bot launched successfully!");
-  process.once("SIGINT", () => bot.stop("SIGINT"));
-  process.once("SIGTERM", () => bot.stop("SIGTERM"));
+  console.log('Bot launched successfully!');
+  process.once('SIGINT', () => bot.stop('SIGINT'));
+  process.once('SIGTERM', () => bot.stop('SIGTERM'));
 }

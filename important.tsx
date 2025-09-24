@@ -24,7 +24,6 @@ export async function handleAddLiquidityRequest(
   liquidityBookServices: LiquidityBookServices,
 ) {
   try {
-    // @ts-ignore heeeloo
     const parts = ctx.message?.text?.trim().split(/\s+/) || [];
     if (parts.length < 5) {
       await ctx.reply(
@@ -326,9 +325,10 @@ export async function handleAddLiquidityRequest(
       }),
     );
 
+    // Prepare transaction data for frontend
     const userId = ctx.from?.id.toString() || '';
     const chatId = ctx.chat?.id.toString() || '';
-    const frontendUrl = process.env.frontendUrl;
+    const frontendUrl = process.env.frontendUrl || 'http://localhost:3001';
 
     const transactionData = {
       transactions: transactionBundles,

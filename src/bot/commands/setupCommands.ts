@@ -15,7 +15,6 @@ import { showMyPoolsData } from './showMyPoolsData';
 import { startAddLiquidityProcess } from './startAddLiquidityProcess';
 import { startRemoveLiquidityProcess } from './startRemoveLiquidityProcess';
 import { createPoolFunctions } from '../controllers/PoolController';
-import { handleCreatePool } from './createPool';
 
 export function setupCommands(
   bot: Telegraf<MyContext>,
@@ -78,10 +77,6 @@ export function setupCommands(
         { parse_mode: 'HTML' },
       );
     }
-  });
-
-  bot.command('createpool', async (ctx) => {
-    await handleCreatePool(ctx, liquidityBookServices);
   });
 
   async function refreshMyPools(
