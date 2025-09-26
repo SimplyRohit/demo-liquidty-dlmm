@@ -2,6 +2,7 @@ import { Context } from 'telegraf';
 import z from 'zod';
 
 export interface MySession {
+  publickey?: string;
   markets?: string[];
   lastFetchedAt?: number;
   currentPage?: number;
