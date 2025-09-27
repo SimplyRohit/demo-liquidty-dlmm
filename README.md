@@ -1,4 +1,4 @@
-# Saros DLMM Telegram Bot
+# Saros DLMM DEMO
 
 This is a Telegram bot for interacting with the Saros DLMM (Dynamic Liquidity Market Maker) on the Solana blockchain. The bot provides a simple interface for managing liquidity pools, swapping tokens, and getting quotes.
 
