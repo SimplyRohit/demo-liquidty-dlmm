@@ -29,7 +29,6 @@ export async function showMyPoolsData(
       payer: userPub,
       pair,
     });
-    console.log(JSON.stringify(positions, null, 2));
     const pairInfo = await liquidityBookServices.getPairAccount(pair);
     const activeBin = pairInfo.activeId;
 

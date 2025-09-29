@@ -38,7 +38,8 @@ export function createBot() {
     },
     {
       command: 'mypools',
-      description: '/mypools <poolAddress> <userPublicKey> - View Your Pools',
+      description:
+        '/mypools <poolAddress> <userPublicKey> - Create position , add liquidity or remove liquidity',
     },
     {
       command: 'binsteps',

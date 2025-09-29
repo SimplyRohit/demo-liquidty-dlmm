@@ -14,6 +14,7 @@ export interface MySession {
   selectedPoolIndex?: number;
   userPublicKey?: string;
   awaitingBinRange?: boolean;
+  awaitingPublicKey?: boolean;
   pendingTransaction?: {
     poolAddress: string;
     userId: string;

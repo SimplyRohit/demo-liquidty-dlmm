@@ -46,7 +46,7 @@ function TransactionSigner() {
     if (connected) {
       await disconnect();
     } else {
-      await setVisible(true);
+      setVisible(true);
     }
   }, [connected, disconnect, setVisible]);
 
